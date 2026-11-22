@@ -236,8 +236,8 @@ function renderSaveState(){
 function yearsAvail(){const ys=new Set([new Date().getFullYear()]);
   DB.movimentos.forEach(m=>{const p=periodOf(m);if(p)ys.add(perParts(p)[0])});DB.plano.forEach(p=>ys.add(perParts(p.per)[0]));
   const a=[...ys].sort();a.push(a[a.length-1]+1);return a}
-const CAT_ICON={"Subscrições":"📺","Carro":"🚗","Combustível":"⛽","Casa":"🏠","Restauração":"🍽️","Compras":"🛍️","Viagens":"✈️","Lazer":"🎭","Prendas":"🎁","Apostas":"🎲","Família e amigos":"👨‍👩‍👧","Saúde e desporto":"💪","Banco e taxas":"🏦","Dia a dia":"☕","Entradas":"💶","Ajustes":"⚖️","Outros":"📦"};
-const CAT_HUE={"Subscrições":265,"Carro":215,"Combustível":30,"Casa":160,"Restauração":12,"Compras":330,"Viagens":195,"Lazer":285,"Prendas":350,"Apostas":45,"Família e amigos":140,"Saúde e desporto":100,"Banco e taxas":225,"Dia a dia":25,"Entradas":145,"Ajustes":0,"Outros":40};
+const CAT_ICON={"Subscrições":"📺","Carro":"🚗","Combustível":"⛽","Casa":"🏠","Restauração":"🍽️","Compras":"🛍️","Viagens":"✈️","Lazer":"🎭","Prendas":"🎁","Apostas":"🎲","Família e amigos":"👨‍👩‍👧","Saúde e desporto":"💪","Banco e taxas":"🏦","Dia a dia":"☕","Entradas":"💶","Ajustes":"⚖️","Outros":"📦","Supermercado":"🛒","Transferências":"↔️"};
+const CAT_HUE={"Subscrições":265,"Carro":215,"Combustível":30,"Casa":160,"Restauração":12,"Compras":330,"Viagens":195,"Lazer":285,"Prendas":350,"Apostas":45,"Família e amigos":140,"Saúde e desporto":100,"Banco e taxas":225,"Dia a dia":25,"Entradas":145,"Ajustes":0,"Outros":40,"Supermercado":120,"Transferências":210};
 const catIcon=c=>CAT_ICON[c]||"🏷️";
 function avatar(c){const h=CAT_HUE[c];return `<div class="av" ${h!=null?`style="background:hsl(${h} 80% 50% / .13)"`:""}>${catIcon(c)}</div>`}
 function avatarMini(c){return `<span class="avm">${catIcon(c)}</span>`}
@@ -355,6 +355,7 @@ function vMovimentos(){
     <select id="fmes"><option value="">Todos os meses</option>${MESES.map((n,i)=>`<option value="${i+1}" ${+f.mes===i+1?"selected":""}>${n}</option>`).join("")}</select>
     <select id="ftipo"><option value="">Fixas e variáveis</option><option ${f.tipo==="Fixa"?"selected":""}>Fixa</option><option ${f.tipo==="Variável"?"selected":""}>Variável</option></select>
     <select id="fcat"><option value="">Todas as categorias</option>${DB.config.categorias.map(c=>`<option ${f.cat===c.nome?"selected":""}>${esc(c.nome)}</option>`).join("")}</select>
+    <button class="btn small" data-act="impextrato">🏦 Importar extrato</button>
     <span class="muted filter-sum">${arr.length} registos · gasto ${eur(tg)} · recebido ${eur(tr)}</span>
   </div>
   <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
@@ -484,6 +485,7 @@ function vDefinicoes(){
       <div class="toolbar" style="margin:0"><button class="btn small primary" data-act="syncsetup">Configurar sincronização</button></div>`;
   return `<h1>Definições</h1><div class="sub">Dados, regras e listas.</div><div class="settings">
   <div class="panel"><h2>🔒 Os teus dados</h2><div class="body">${fs}
+    <div class="toolbar" style="margin:0"><button class="btn small primary" data-act="impextrato">🏦 Importar extrato do banco (CSV)</button></div>
     <div class="toolbar" style="margin:0"><button class="btn small" data-act="exportcsv">Exportar para Excel (CSV)</button><button class="btn small" data-act="exportjson">Exportar cópia de segurança</button><button class="btn small" data-act="importjson">Importar cópia…</button></div>
     <div class="muted" style="font-size:12px">Os dados são encriptados neste dispositivo antes de saírem. No GitHub só fica um ficheiro ilegível sem a tua palavra-passe. A cópia de segurança exportada não é encriptada: guarda-a em local seguro.</div></div></div>
   <div class="panel"><h2>🎨 Aspeto</h2><div class="body">
@@ -563,7 +565,7 @@ function openEditor(mv,preset={}){
   $("#kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#kind").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))});
   $("#mvForm").addEventListener("submit",e=>{e.preventDefault();saveEditor()});
   setTimeout(()=>(isNew?$("#fVal"):$("#fDesc")).focus(),30)}
-function closeModal(){$("#modalBg").classList.remove("open");editing=null}
+function closeModal(){$("#modal").classList.remove("wide");$("#modalBg").classList.remove("open");editing=null}
 function saveEditor(){
   const desc=$("#fDesc").value.trim();if(!desc){$("#fDesc").focus();toast("Falta a descrição");return}
   const vs=$("#fVal").value;let v=vs===""?null:Math.abs(parseFloat(vs));

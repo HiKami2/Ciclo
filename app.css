@@ -361,3 +361,22 @@ tr.cur .money span{color:var(--accent)}
 
 .row.virtual{background:color-mix(in srgb,var(--green) 5%,transparent)}
 .row.virtual .d{font-style:normal}
+
+/* importar extrato */
+.modal.wide{width:min(980px,100%)}
+.implist{display:grid;gap:2px;max-height:52vh;overflow:auto;border-radius:var(--r-md);background:var(--soft);padding:4px}
+.improw{display:grid;grid-template-columns:auto minmax(0,1fr) 170px 104px 100px;gap:10px;align-items:center;background:var(--panel);border-radius:10px;padding:8px 10px}
+.improw.off{opacity:.5}
+.improw input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.improw .impname{width:100%;min-height:34px;padding:6px 8px;font-weight:600;background:transparent;border-color:transparent}
+.improw .impname:hover{background:var(--soft)}
+.improw .m{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px}
+.improw select{min-height:36px;padding:6px 30px 6px 10px;font-size:13px}
+.improw .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.impsal{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 14px;margin-top:8px;font-size:13.5px}
+@media (max-width:700px){
+  .improw{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"c d v" "c s t"}
+  .improw>input[type=checkbox]{grid-area:c}.improw .impd{grid-area:d}.improw .v{grid-area:v}
+  .improw select[data-impcat]{grid-area:s}.improw .imptipo{grid-area:t}
+  .implist{max-height:48vh}
+}
