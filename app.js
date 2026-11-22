@@ -104,7 +104,7 @@ function mergeDB(a,b){ // junta dois conjuntos de dados; vence a alteração mai
     plano:byKey(a.plano||[],b.plano||[],"per"),apagados:ap})}
 
 /* --- ciclo de sincronização --- */
-function changed(){DB.alterado=new Date().toISOString();stamp();lsSet();scheduleSync(1200);render()}
+function changed(){SUMC=new Map();DB.alterado=new Date().toISOString();stamp();lsSet();scheduleSync(1200);render()}
 function scheduleSync(ms){clearTimeout(syncTimer);if(!SYNC||!KEY)return;pending=true;renderSaveState();syncTimer=setTimeout(syncNow,ms)}
 let syncing=false;
 async function syncNow(){
@@ -197,10 +197,17 @@ function movsOf(k){return DB.movimentos.filter(m=>periodOf(m)===k)}
 function planOf(k){return DB.plano.find(p=>p.per===k)}
 function rendOf(k){const p=planOf(k);return p?(+p.salario||0)+(+p.outros||0):0}
 function poupOf(k){return DB.poupancas.filter(p=>p.per===k).reduce((s,p)=>s+(+p.valor||0),0)}
-function sums(k){const ms=movsOf(k);const r={fixas:0,variaveis:0,rec:0,pago:0,pend:0,n:ms.length};
+/* --- saldo transitado do mês anterior --- */
+let SUMC=new Map();
+function trCfg(){const t=DB.config.transitar||{};return{ativo:t.ativo!==false,desde:t.desde||"2026-11",negativo:!!t.negativo}}
+function hasData(k){return rendOf(k)>0||movsOf(k).length>0}
+function carry(k){const c=trCfg();if(!c.ativo||k<c.desde)return 0;const prev=addMonths(k,-1);if(!hasData(prev))return 0;
+  const p=sums(prev).plafond;return c.negativo?Math.round(p*100)/100:Math.max(0,Math.round(p*100)/100)}
+function sums(k){if(SUMC.has(k))return SUMC.get(k);const r=sumsBase(k);r.trans=carry(k);r.plafond=r.plafondBase+r.trans;r.balanco+=r.trans;SUMC.set(k,r);return r}
+function sumsBase(k){const ms=movsOf(k);const r={fixas:0,variaveis:0,rec:0,pago:0,pend:0,n:ms.length};
   for(const m of ms){const g=gasto(m);if(m.tipo==="Fixa")r.fixas+=g;else r.variaveis+=g;r.rec+=recebido(m);
     const s=status(m).k;if(s==="pago")r.pago+=g;if(s==="pend")r.pend+=g}
-  r.rend=rendOf(k);r.poup=poupOf(k);r.plafond=r.rend+r.rec-r.poup-r.fixas-r.variaveis;r.balanco=r.rend+r.rec-r.poup-r.pago;return r}
+  r.rend=rendOf(k);r.poup=poupOf(k);r.plafondBase=r.rend+r.rec-r.poup-r.fixas-r.variaveis;r.balanco=r.rend+r.rec-r.poup-r.pago;return r}
 function curPeriod(){return periodOfDate(today0())}
 
 /* ================= Estado da interface ================= */
@@ -208,7 +215,7 @@ const UI={view:"mensal",per:null,ano:null,filtro:{q:"",ano:"",mes:"",tipo:"",cat
 function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0);const mm=document.querySelector("main");if(mm)mm.scrollTop=0}
 
 /* ================= Render ================= */
-function render(){
+function render(){SUMC=new Map();
   document.querySelectorAll("nav.side button").forEach(b=>b.classList.toggle("on",b.dataset.view===UI.view));
   const v={mensal:vMensal,anual:vAnual,movimentos:vMovimentos,plano:vPlano,definicoes:vDefinicoes}[UI.view];
   $("#main").innerHTML=banner()+v();bindView();renderSaveState()}
@@ -242,7 +249,11 @@ function chip(m){const s=status(m);return `<span class="chip ${s.k}">${s.txt}</s
 /* ---------- Mensal ---------- */
 function vMensal(){
   const k=UI.per;const [y,m]=perParts(k);const [s,e]=periodRange(k);const S=sums(k);
-  const used=S.rend+S.rec>0?Math.min(1,(S.fixas+S.variaveis+S.poup)/(S.rend+S.rec)):0;
+  const avail=S.rend+S.rec+Math.max(0,S.trans),used=avail>0?Math.min(1,(S.fixas+S.variaveis+S.poup+Math.max(0,-S.trans))/avail):0;
+  const prevName=MESES[perParts(addMonths(k,-1))[1]-1].toLowerCase();
+  const transRow=S.trans?`<div class="row virtual" data-act="transinfo"><div class="av" style="background:hsl(145 70% 45% / .14)">↪️</div>
+    <div class="txt"><div class="d">Saldo de ${prevName}</div><div class="m">Automático · sobra do plafond do mês anterior</div></div>
+    <div class="rt"><div class="v ${S.trans>0?"in":""}">${S.trans>0?"+ "+eur(S.trans):"− "+eur(-S.trans)}</div><span class="chip ${S.trans>0?"rec":"sem"}">${S.trans>0?"Transitado":"Em falta"}</span></div></div>`:"";
   const ys=yearsAvail();
   const ms=movsOf(k).sort((a,b)=>(a.data||"9999").localeCompare(b.data||"9999"));
   const fix=ms.filter(x=>x.tipo==="Fixa"),vari=ms.filter(x=>x.tipo!=="Fixa");
@@ -259,7 +270,7 @@ function vMensal(){
     <span class="muted period-info">Ordenado a ${fmtDshort(s)} · até ${fmtDshort(e)}</span></div>
   <div class="cards">
     <div class="card hero"><div class="lbl">Plafond restante</div><div class="val">${eur(S.plafond)}</div><div class="bar"><i style="width:${(used*100).toFixed(0)}%"></i></div><div class="hint">${(used*100).toFixed(0)}% do rendimento já comprometido</div></div>
-    <div class="card"><div class="lbl">Rendimento</div><div class="val">${eur(S.rend)}</div><div class="hint">${S.rec?"+ "+eur(S.rec)+" recebido":"&nbsp;"}</div></div>
+    <div class="card"><div class="lbl">Rendimento</div><div class="val">${eur(S.rend)}</div><div class="hint">${[S.trans>0?"+ "+eur(S.trans)+" do mês anterior":S.trans<0?"− "+eur(-S.trans)+" do mês anterior":"",S.rec?"+ "+eur(S.rec)+" recebido":""].filter(Boolean).join("<br>")||"&nbsp;"}</div></div>
     <div class="card"><div class="lbl">Despesas fixas</div><div class="val">${eur(S.fixas)}</div></div>
     <div class="card"><div class="lbl">Variáveis</div><div class="val">${eur(S.variaveis)}</div></div>
     <div class="card"><div class="lbl">Poupança</div><div class="val" style="color:var(--blue)">${eur(S.poup)}</div></div>
@@ -273,8 +284,8 @@ function vMensal(){
     <div class="panel"><h2>Despesas fixas <span class="count">${fix.length} itens</span><span class="tot">${eur(tot(fix))}</span></h2>
       <div class="list">${list(fix)}</div>
       <div class="foot"><button class="btn small" data-act="addfixa">+ Fixa</button><button class="btn small" data-act="copyfix">↻ Copiar fixas do mês anterior</button></div></div>
-    <div class="panel"><h2>Despesas variáveis <span class="count">${vari.length} itens</span><span class="tot">${eur(tot(vari))}</span></h2>
-      <div class="list">${list(vari)}</div>
+    <div class="panel"><h2>Despesas variáveis <span class="count">${vari.length} itens</span><span class="tot">${eur(tot(vari)-S.trans)}</span></h2>
+      <div class="list">${transRow}${vari.length||!S.trans?list(vari):""}</div>
       <div class="foot"><button class="btn small" data-act="addvar">+ Variável</button><button class="btn small" data-act="addrec">+ Recebido</button></div></div>
   </div>`}
 
@@ -282,7 +293,7 @@ function vMensal(){
 function vAnual(){
   const y=UI.ano;const ys=yearsAvail();const rows=[];let T={rend:0,fixas:0,variaveis:0,rec:0,poup:0,plafond:0,pend:0};
   for(let m=1;m<=12;m++){const k=perKey(y,m);const S=sums(k);const has=S.n||S.rend||S.poup;rows.push({m,k,S,has});
-    if(has)for(const f in T)T[f]+=S[f]}
+    if(has)for(const f in T)T[f]+=(f==="plafond"?S.plafondBase:S[f])}
   const cur=curPeriod();
   const cats={};for(const mv of DB.movimentos){const p=periodOf(mv);if(!p||perParts(p)[0]!==y)continue;const c=mv.cat||"Sem categoria";
     cats[c]=cats[c]||{g:0,r:0};cats[c].g+=gasto(mv);cats[c].r+=recebido(mv)}
@@ -478,6 +489,13 @@ function vDefinicoes(){
   <div class="panel"><h2>🎨 Aspeto</h2><div class="body">
     <div class="seg full" id="themeSeg">${[["auto","Automático"],["light","☀️ Claro"],["dark","🌙 Escuro"]].map(([k,n])=>`<button type="button" data-theme-set="${k}" class="${getTheme()===k?"on":""}">${n}</button>`).join("")}</div>
     <div class="muted" style="font-size:12px">"Automático" segue o modo do sistema (claro de dia, escuro à noite, conforme o telemóvel ou o PC). A escolha fica guardada neste dispositivo.</div></div></div>
+  ${(()=>{const c=trCfg();const [ty,tm]=perParts(c.desde);const cy=new Date().getFullYear();return `<div class="panel"><h2>↪️ Saldo do mês anterior</h2><div class="body">
+    <label class="toggle"><input type="checkbox" id="trOn" ${c.ativo?"checked":""}> Passar o que sobra do plafond para o mês seguinte, como receita</label>
+    <div class="field"><label>A partir de</label><div class="two"><select id="trMes">${MESES.map((n,i)=>`<option value="${i+1}" ${i+1===tm?"selected":""}>${n}</option>`).join("")}</select>
+      <select id="trAno">${Array.from({length:8},(_,i)=>cy-2+i).map(a=>`<option ${a===ty?"selected":""}>${a}</option>`).join("")}</select></div></div>
+    <label class="toggle"><input type="checkbox" id="trNeg" ${c.negativo?"checked":""}> Se o mês fechar em negativo, descontar no seguinte</label>
+    <div class="muted" style="font-size:12px">O valor é calculado sozinho e aparece no Mensal como “Saldo de …”. Se já registaste à mão o que sobrou (ex.: “Mês passado”), apaga esse movimento para não contar a dobrar.</div>
+    <div><button class="btn small primary" data-act="savetrans">Guardar</button></div></div></div>`})()}
   <div class="panel"><h2>📅 Mês e ordenado</h2><div class="body">
     <div class="field" style="max-width:260px"><label>Dia do ordenado</label><input type="number" min="1" max="31" id="cfgDia" value="${DB.config.diaOrdenado}"></div>
     <div class="muted" style="font-size:12px">Se calhar ao fim de semana ou feriado, conta o dia útil seguinte. O mês vai desse dia até à véspera do ordenado seguinte.</div>
@@ -612,6 +630,8 @@ document.addEventListener("click",async e=>{
     case"close":closeModal();break;
     case"savemv":saveEditor();break;
     case"newgoal":openGoal(null);break;
+    case"transinfo":{const S=sums(UI.per);toast(S.trans>0?`Sobraram ${eur(S.trans)} no mês anterior: entram aqui como receita.`:`O mês anterior fechou em negativo: ${eur(-S.trans)} descontados aqui.`);break}
+    case"savetrans":{const y=+$("#trAno").value,m=+$("#trMes").value;DB.config.transitar={ativo:$("#trOn").checked,desde:perKey(y,m),negativo:$("#trNeg").checked};changed();toast("Guardado ✔");break}
     case"delprest":{if(t.dataset.confirm){const g=editing.prest.grupo;const n=DB.movimentos.filter(x=>x.prest&&x.prest.grupo===g).length;DB.movimentos=DB.movimentos.filter(x=>!(x.prest&&x.prest.grupo===g));closeModal();changed();toast(`${n} prestações apagadas`)}else{t.dataset.confirm="1";t.textContent="Confirmar: apagar todas"}break}
     case"goprest":UI.ano=perParts(curPeriod())[0];setView("plano");setTimeout(()=>{const el=$("#prestPanel");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50);break;
     case"savegoal":saveGoal();break;

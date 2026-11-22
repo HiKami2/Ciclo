@@ -358,3 +358,6 @@ tr.cur .money span{color:var(--accent)}
 .pline{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;margin:-4px 0 16px;padding:11px 14px;border-radius:var(--r-md);
   background:var(--btn-bg);border:1px solid var(--btn-border);box-shadow:inset 0 1px 0 var(--btn-hi),var(--btn-sh);font-size:14px}
 .pline:hover{transform:translateY(-1px)}
+
+.row.virtual{background:color-mix(in srgb,var(--green) 5%,transparent)}
+.row.virtual .d{font-style:normal}
