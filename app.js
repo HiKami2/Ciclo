@@ -205,7 +205,7 @@ function curPeriod(){return periodOfDate(today0())}
 
 /* ================= Estado da interface ================= */
 const UI={view:"mensal",per:null,ano:null,filtro:{q:"",ano:"",mes:"",tipo:"",cat:""}};
-function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0)}
+function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0);const mm=document.querySelector("main");if(mm)mm.scrollTop=0}
 
 /* ================= Render ================= */
 function render(){

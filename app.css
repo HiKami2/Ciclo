@@ -182,8 +182,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
 
 /* ---------- Telemóvel ---------- */
 @media (max-width:900px){
-  .app{grid-template-columns:minmax(0,1fr)}
-  nav.side{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;width:100%;flex-direction:row;z-index:40;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  /* estrutura de app: só o conteúdo faz scroll; a barra de baixo nunca se mexe */
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%}
+  .app{display:flex;flex-direction:column;height:100%;height:100dvh;min-height:0}
+  main{order:1;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
+  nav.side{order:2;position:relative !important;flex:none}
+  nav.side{left:auto;right:auto;bottom:auto;top:auto;height:auto;width:100%;flex-direction:row;z-index:40;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
     border-right:0;border-top:1px solid var(--line);justify-content:space-around;gap:2px;
     background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px)}
   nav.side .brand,nav.side .grow,.save-state{display:none}
@@ -197,8 +201,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
   .appbar img{width:30px;height:30px;border-radius:9px}
   .appbar b{font-size:18px;letter-spacing:-.02em}
   .syncmini{margin-left:auto;font-size:11.5px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;color:var(--muted);background:var(--panel);padding:6px 10px;border-radius:99px;box-shadow:var(--shadow);cursor:pointer;white-space:nowrap}
-  main{padding:0 14px calc(100px + env(safe-area-inset-bottom))}
+  main{padding:0 14px 28px}
   .toast{bottom:calc(var(--nav-h) + 24px + env(safe-area-inset-bottom))}
+  .appbar{top:0}
 }
 @media (max-width:700px){
   .sm-only{display:inline-block}.sm-block{display:block}
