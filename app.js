@@ -153,7 +153,7 @@ async function logoutDevice(){
 function validData(d){return d&&Array.isArray(d.movimentos)&&d.config}
 function normalize(d){
   d.versao=d.versao||1;d.plano=d.plano||[];d.poupancas=d.poupancas||[];d.movimentos=d.movimentos||[];d.apagados=d.apagados||{};
-  d.config=d.config||{};d.config.categorias=d.config.categorias||[];d.config.destinos=d.config.destinos||[];d.config.feriados=d.config.feriados||[];
+  d.config=d.config||{};d.config.categorias=d.config.categorias||[];d.config.destinos=d.config.destinos||[];d.config.metas=d.config.metas||{};d.config.feriados=d.config.feriados||[];
   d.config.diaOrdenado=d.config.diaOrdenado||22;return d}
 function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=(19*a+b-Math.floor(b/4)-Math.floor((b-Math.floor((b+8)/25)+1)/3)+15)%30,
   e=(32+2*(b%4)+2*Math.floor(c/4)-d-(c%4))%7,f=d+e-7*Math.floor((a+11*d+22*e)/451)+114;return new Date(y,Math.floor(f/31)-1,f%31+1)}
@@ -321,9 +321,9 @@ function vAnual(){
       ${catArr.map(([n,v])=>{const md=v.g/nMeses,o=orc(n);return `<tr><td>${esc(n)}${v.r?` <span class="muted">(+${eur(v.r)})</span>`:""}</td><td>${eur(v.g)}</td><td class="${o&&md>o?"neg":""}">${eur(md)}</td><td class="lg-cell">${o?eur(o):"–"}</td><td class="lg-cell"><div class="catbar"><i style="width:${gT?(v.g/gT*100).toFixed(1):0}%"></i></div></td></tr>`}).join("")||`<tr><td colspan="5" class="muted">Sem dados</td></tr>`}
     </table></div>
     <div class="panel" style="overflow:auto"><h2>Poupança por destino</h2><table>
-      <tr><th>Destino</th><th>No ano</th><th>Acumulado</th></tr>
+      <tr><th>Destino</th><th>No ano</th><th>Acumulado</th><th class="lg-cell">Objetivo</th></tr>
       ${DB.config.destinos.map(d=>{const a=DB.poupancas.filter(p=>p.destino===d&&perParts(p.per)[0]===y).reduce((s,p)=>s+(+p.valor||0),0);
-        const c=DB.poupancas.filter(p=>p.destino===d&&perParts(p.per)[0]<=y).reduce((s,p)=>s+(+p.valor||0),0);return (a||c)?`<tr><td>${esc(d)}</td><td>${eur(a)}</td><td>${eur(c)}</td></tr>`:""}).join("")}
+        const c=DB.poupancas.filter(p=>p.destino===d&&perParts(p.per)[0]<=y).reduce((s,p)=>s+(+p.valor||0),0);const g=metaOf(d);return (a||c)?`<tr class="click" data-gogoal="1"><td>${esc(d)}</td><td>${eur(a)}</td><td>${eur(c)}</td><td class="lg-cell">${g.objetivo?eur(g.objetivo)+(g.prazo?" · "+MES3[perParts(g.prazo)[1]-1]+" "+perParts(g.prazo)[0]:""):"–"}</td></tr>`:""}).join("")}
     </table></div>
   </div>`}
 
@@ -350,11 +350,84 @@ function vMovimentos(){
   </table>${arr.length>600?`<div class="empty">A mostrar 600 de ${arr.length}. Usa os filtros.</div>`:""}${!arr.length?`<div class="empty">Nada encontrado.</div>`:""}</div>`}
 
 /* ---------- Plano ---------- */
+/* ---------- Objetivos de poupança ---------- */
+function metaOf(d){return DB.config.metas[d]||{}}
+function monthsBetween(a,b){const [y1,m1]=perParts(a),[y2,m2]=perParts(b);return (y2-y1)*12+(m2-m1)}
+function goalInfo(d){
+  const g=metaOf(d),cur=curPeriod();
+  const all=DB.poupancas.filter(p=>p.destino===d);
+  const guardado=all.filter(p=>p.per<=cur).reduce((s,p)=>s+(+p.valor||0),0);
+  const planeado=all.reduce((s,p)=>s+(+p.valor||0),0);
+  const r={d,g,guardado,planeado,obj:+g.objetivo||0,prazo:g.prazo||null};
+  if(r.obj)r.pct=Math.min(1,guardado/r.obj),r.pctPlan=Math.min(1,planeado/r.obj);
+  if(r.prazo){
+    r.mesesRest=Math.max(0,monthsBetween(cur,r.prazo));
+    r.atePrazo=all.filter(p=>p.per<=r.prazo).reduce((s,p)=>s+(+p.valor||0),0);
+    if(r.obj){const falta=Math.max(0,r.obj-guardado);r.falta=falta;r.porMes=r.mesesRest>0?falta/r.mesesRest:falta;
+      r.estado=guardado>=r.obj?"ok":r.atePrazo>=r.obj?"plan":r.prazo<cur?"late":"short"}
+  }else if(r.obj){r.falta=Math.max(0,r.obj-guardado);r.estado=guardado>=r.obj?"ok":"open"}
+  else r.estado="open";
+  // média mensal dos últimos 6 meses com depósitos
+  const meses=[...new Set(all.filter(p=>p.per<=cur).map(p=>p.per))].sort().slice(-6);
+  r.media=meses.length?all.filter(p=>meses.includes(p.per)).reduce((s,p)=>s+(+p.valor||0),0)/meses.length:0;
+  return r}
+const fmtPer=k=>{const [y,m]=perParts(k);return `${MESES[m-1]} ${y}`};
+function goalCard(i){
+  const r=goalInfo(i);const chipTxt={ok:["pago","Objetivo atingido 🎉"],plan:["pago","No bom caminho"],short:["pend","Falta planear"],late:["sem","Prazo ultrapassado"],open:["paus","Sem data final"]}[r.estado];
+  const prazoTxt=r.prazo?`até ${fmtPer(r.prazo)}${r.mesesRest>0?` · faltam ${r.mesesRest} ${r.mesesRest===1?"mês":"meses"}`:""}`:"Sem data final";
+  return `<div class="goal" data-goal="${esc(i)}">
+    <div class="goal-h"><div class="goal-n">${esc(i)}</div><span class="chip ${chipTxt[0]}">${chipTxt[1]}</span></div>
+    <div class="goal-v">${eur(r.guardado)}${r.obj?` <span class="muted">de ${eur(r.obj)}</span>`:""}</div>
+    ${r.obj?`<div class="gbar"><i class="plan" style="width:${(r.pctPlan*100).toFixed(1)}%"></i><i style="width:${(r.pct*100).toFixed(1)}%"></i></div>`:""}
+    ${r.prazo?`<div class="goal-m">📅 ${prazoTxt}</div>`:""}
+    ${r.obj&&r.prazo&&r.falta>0?`<div class="goal-m">💡 Para chegares lá: <b>${eur(r.porMes)}/mês</b></div>`:""}
+    ${r.planeado>r.guardado?`<div class="goal-m muted">Com o que já está planeado: ${eur(r.planeado)}</div>`:""}
+    ${!r.obj?`<div class="goal-m muted">${r.media?`Média recente: ${eur(r.media)}/mês`:"Ainda sem depósitos"}</div>`:""}
+  </div>`}
+function openGoal(name){
+  const isNew=name==null;const g=isNew?{}:metaOf(name);const cur=curPeriod();const [cy]=perParts(cur);
+  const [py,pm]=g.prazo?perParts(g.prazo):[cy+1,perParts(cur)[1]];
+  editing={goal:true,orig:name};
+  $("#modal").innerHTML=`<header>${isNew?"Novo objetivo de poupança":"Editar objetivo"}<button class="iconbtn x" data-act="close">✕</button></header>
+  <form class="body" id="goalForm" autocomplete="off">
+    <div class="field"><label>Nome</label><input type="text" id="gNome" value="${esc(name||"")}" placeholder="Ex.: Férias, Fundo de emergência, Carro…"></div>
+    <div class="field"><label>Objetivo (opcional)</label><label class="amount" style="padding:4px 16px"><input type="number" inputmode="decimal" step="0.01" min="0" id="gObj" value="${g.objetivo||""}" placeholder="Sem valor definido" style="font-size:26px !important;min-height:44px"><span style="font-size:20px">€</span></label></div>
+    <div class="field"><label>Prazo</label><div class="seg full" id="gTipo"><button type="button" data-p="sem" class="${g.prazo?"":"on"}">Sem data final</button><button type="button" data-p="ate" class="${g.prazo?"on":""}">Até uma data</button></div></div>
+    <div class="two" id="gData" style="${g.prazo?"":"display:none"}"><select id="gMes">${MESES.map((n,i)=>`<option value="${i+1}" ${i+1===pm?"selected":""}>${n}</option>`).join("")}</select>
+      <select id="gAno">${Array.from({length:12},(_,i)=>cy-1+i).map(a=>`<option ${a===py?"selected":""}>${a}</option>`).join("")}</select></div>
+    <div class="muted" id="gInfo" style="font-size:12.5px"></div>
+  </form>
+  <div class="actions">${isNew?"":`<button class="btn danger left" data-act="delgoal">Apagar</button>`}<button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="savegoal">Guardar</button></div>`;
+  $("#modalBg").classList.add("open");
+  const info=()=>{const ate=$("#gTipo .on").dataset.p==="ate";$("#gData").style.display=ate?"":"none";
+    const obj=+$("#gObj").value||0;const nm=$("#gNome").value.trim()||name;let t="";
+    if(ate&&obj){const prazo=perKey(+$("#gAno").value,+$("#gMes").value);const meses=Math.max(0,monthsBetween(cur,prazo));
+      const guard=nm?DB.poupancas.filter(p=>p.destino===nm&&p.per<=cur).reduce((s,p)=>s+(+p.valor||0),0):0;const falta=Math.max(0,obj-guard);
+      t=meses>0?`Faltam ${eur(falta)} em ${meses} ${meses===1?"mês":"meses"}: cerca de <b>${eur(falta/meses)}/mês</b>.`:`O prazo é este mês: faltam ${eur(falta)}.`}
+    else if(obj)t="Sem data final: a app mostra o progresso até chegares ao objetivo.";
+    else t="Sem objetivo nem data: serve só para ires juntando (ex.: fundo de emergência).";
+    $("#gInfo").innerHTML=t};
+  $("#gTipo").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#gTipo").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));info()});
+  ["gObj","gMes","gAno","gNome"].forEach(id=>$("#"+id).addEventListener("input",info));info();
+  $("#goalForm").addEventListener("submit",e=>{e.preventDefault();saveGoal()});
+  setTimeout(()=>$(isNew?"#gNome":"#gObj").focus(),30)}
+function saveGoal(){
+  const nome=$("#gNome").value.trim();const orig=editing.orig;
+  if(!nome){toast("Falta o nome");return}
+  if(nome!==orig&&DB.config.destinos.includes(nome)){toast("Já existe um objetivo com esse nome");return}
+  const obj=parseFloat($("#gObj").value);const ate=$("#gTipo .on").dataset.p==="ate";
+  const meta={objetivo:obj>0?Math.round(obj*100)/100:null,prazo:ate?perKey(+$("#gAno").value,+$("#gMes").value):null};
+  if(orig==null)DB.config.destinos.push(nome);
+  else if(nome!==orig){DB.config.destinos=DB.config.destinos.map(d=>d===orig?nome:d);DB.poupancas.forEach(p=>{if(p.destino===orig)p.destino=nome});delete DB.config.metas[orig]}
+  DB.config.metas[nome]=meta;closeModal();changed();toast("Objetivo guardado ✔")}
+
 function vPlano(){
   const y=UI.ano;const ys=yearsAvail();
   return `<h1>Plano</h1><div class="sub">Rendimento e poupança de cada mês de ${y}.</div>
   <div class="toolbar"><button class="iconbtn" data-act="yprev">‹</button><select id="selAnoA">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select><button class="iconbtn" data-act="ynext">›</button>
     <button class="btn small" data-act="copysal">Repetir salário de janeiro</button></div>
+  <div class="panel" style="margin-bottom:16px"><h2>🎯 Objetivos de poupança <button class="btn small" data-act="newgoal" style="margin-left:auto">+ Novo objetivo</button></h2>
+    <div class="goals">${DB.config.destinos.map(goalCard).join("")||`<div class="empty">Cria um objetivo: com valor e data (ex.: Férias, 1500 € até junho) ou sem data final (ex.: Fundo de emergência).</div>`}</div></div>
   <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos</h2><table>
     <tr><th>Mês</th><th>Salário</th><th>Outros</th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
     ${MESES.map((n,i)=>{const k=perKey(y,i+1);const p=planOf(k)||{};return `<tr><td>${n}</td>
@@ -395,7 +468,7 @@ function vDefinicoes(){
     <tr><th>Categoria</th><th>Orçamento/mês</th><th></th></tr>
     ${DB.config.categorias.map((c,i)=>`<tr><td>${esc(c.nome)}</td><td><input type="number" step="0.01" data-orc="${i}" value="${c.orcamento??""}" placeholder="–"></td><td><button class="btn small danger" data-delcat="${i}">Remover</button></td></tr>`).join("")}
   </table><div class="foot"><input type="text" id="newCat" placeholder="Nova categoria"><button class="btn small" data-act="addcat">+ Adicionar</button></div></div>
-  <div class="panel"><h2>🐷 Destinos de poupança</h2><div class="body">
+  <div class="panel"><h2>🐷 Destinos de poupança</h2><div class="body"><div class="muted" style="font-size:12.5px">Para definir valor e prazo de cada um, usa <b>Plano → Objetivos de poupança</b>.</div>
     <div>${DB.config.destinos.map((d,i)=>`<span class="chip paus" style="margin:0 6px 6px 0;display:inline-block">${esc(d)} <a href="#" data-deldest="${i}" style="color:inherit">✕</a></span>`).join("")}</div>
     <div class="toolbar" style="margin:0"><input type="text" id="newDest" placeholder="Novo destino"><button class="btn small" data-act="adddest">+ Adicionar</button></div></div></div>
   <div class="panel"><h2>🚪 Este dispositivo</h2><div class="body"><div class="muted">Termina a sessão: apaga deste dispositivo os dados, o token e a chave. Os dados sincronizados continuam no repositório.</div><div><button class="btn small danger" data-act="wipe">Terminar sessão neste dispositivo</button></div></div></div>
@@ -478,6 +551,8 @@ function bindView(){
 }
 document.addEventListener("click",async e=>{
   const th=e.target.closest("[data-theme-set]");if(th){setTheme(th.dataset.themeSet);return}
+  const gl=e.target.closest("[data-goal]");if(gl&&!e.target.closest("[data-act]")){openGoal(gl.dataset.goal);return}
+  if(e.target.closest("[data-gogoal]")){UI.ano=perParts(curPeriod())[0];setView("plano");return}
   const t=e.target.closest("[data-act],[data-edit],[data-gomes],[data-delpoup],[data-delcat],[data-deldest],nav.side button");if(!t)return;
   if(t.matches("nav.side button")){setView(t.dataset.view);return}
   if(t.dataset.edit){openEditor(DB.movimentos.find(m=>m.id===t.dataset.edit));return}
@@ -489,6 +564,10 @@ document.addEventListener("click",async e=>{
   switch(a){
     case"close":closeModal();break;
     case"savemv":saveEditor();break;
+    case"newgoal":openGoal(null);break;
+    case"savegoal":saveGoal();break;
+    case"delgoal":{const n=editing.orig;if(DB.poupancas.some(p=>p.destino===n)){toast("Há poupanças registadas neste objetivo: remove-as primeiro no Plano");break}
+      if(t.dataset.confirm){DB.config.destinos=DB.config.destinos.filter(d=>d!==n);delete DB.config.metas[n];closeModal();changed();toast("Objetivo apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break}
     case"del":if(t.dataset.confirm){DB.movimentos=DB.movimentos.filter(m=>m.id!==editing.id);closeModal();changed();toast("Apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break;
     case"dup":{const c={...editing,id:uid()};closeModal();openEditor(null,{...c,id:uid()});break}
     case"prev":UI.per=addMonths(UI.per,-1);render();break;

@@ -257,3 +257,15 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
 :root[data-theme=dark] .themebtn .sun{display:none}:root[data-theme=dark] .themebtn .moon{display:block}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .themebtn .sun{display:none}:root:not([data-theme=light]) .themebtn .moon{display:block}}
 @media (max-width:700px){.themebtn{width:38px;height:38px;border-radius:99px}}
+
+/* objetivos de poupança */
+.goals{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:6px 16px 16px}
+.goal{background:var(--soft);border-radius:var(--r-md);padding:14px 15px;cursor:pointer;display:grid;gap:6px;transition:background .15s,transform .1s;min-width:0}
+.goal:hover{background:var(--soft2)}.goal:active{transform:scale(.99)}
+.goal-h{display:flex;align-items:center;gap:8px}.goal-n{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.goal-v{font-size:20px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.goal-v .muted{font-size:14px;font-weight:550}
+.goal-m{font-size:12.5px}
+.gbar{position:relative;height:9px;border-radius:99px;background:var(--panel);overflow:hidden}
+.gbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.gbar i.plan{background:var(--accent);opacity:.25}
+@media (max-width:700px){.goals{grid-template-columns:minmax(0,1fr);padding:4px 12px 14px}}
