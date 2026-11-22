@@ -1,6 +1,6 @@
 {
-  "name": "Minhas Despesas",
-  "short_name": "Despesas",
+  "name": "€iclo — controlo de despesas",
+  "short_name": "€iclo",
   "description": "Controlo de despesas pessoal",
   "lang": "pt-PT",
   "start_url": "./",

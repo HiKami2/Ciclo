@@ -49,7 +49,7 @@ async function deriveKey(pass,salt){
 async function encryptDB(obj){
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},KEY.key,enc.encode(JSON.stringify(obj)));
-  return JSON.stringify({app:"minhas-despesas",formato:1,kdf:"PBKDF2-SHA256",iter:ITER,salt:KEY.salt,iv:b64e(iv),dados:b64e(ct)})}
+  return JSON.stringify({app:"eciclo",formato:1,kdf:"PBKDF2-SHA256",iter:ITER,salt:KEY.salt,iv:b64e(iv),dados:b64e(ct)})}
 async function decryptEnvelope(env,key){
   const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64d(env.iv)},key,b64d(env.dados));return JSON.parse(dec.decode(pt))}
 
@@ -166,7 +166,7 @@ function emptyDB(){const y=new Date().getFullYear();return normalize({versao:2,c
 function download(name,content,type){
   const b=new Blob([content],{type});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
-function exportJSON(){const {apagados,...d}=DB;download(`minhas-despesas-copia-${iso(new Date())}.json`,JSON.stringify(d,null,1),"application/json");toast("Cópia de segurança exportada (não encriptada — guarda-a em local seguro)")}
+function exportJSON(){const {apagados,...d}=DB;download(`eciclo-copia-${iso(new Date())}.json`,JSON.stringify(d,null,1),"application/json");toast("Cópia de segurança exportada (não encriptada — guarda-a em local seguro)")}
 function exportCSV(){
   const q=s=>`"${String(s??"").replace(/"/g,'""')}"`;const num=v=>v==null?"":String(v).replace(".",",");
   const lines=[["Data","Descrição","Valor","Gasto","Recebido","Categoria","Tipo","Pausado","Ano","Mês","Situação","Notas"].join(";")];
@@ -526,7 +526,7 @@ function openSyncSetup(){
   $("#modal").innerHTML=`<header>Sincronização ☁️🔒<button class="iconbtn x" data-act="close">✕</button></header>
   <form class="body" id="syncForm" autocomplete="off">
     <div class="muted" style="font-size:13px">Os dados ficam num <b>repositório privado</b> do teu GitHub, <b>encriptados</b> com uma palavra-passe que só tu sabes. Faz isto uma vez em cada dispositivo (PC e telemóvel).</div>
-    <div class="field"><label>Repositório de dados (privado)</label><input type="text" id="sRepo" value="${esc(repo)}" placeholder="utilizador/minhas-despesas-dados"></div>
+    <div class="field"><label>Repositório de dados (privado)</label><input type="text" id="sRepo" value="${esc(repo)}" placeholder="utilizador/ciclo-dados"></div>
     <div class="field"><label>Token do GitHub (só para esse repositório)</label><input type="password" id="sTok" value="${esc(SYNC?.token||"")}" placeholder="github_pat_…" autocomplete="off"></div>
     <div class="field"><label>Palavra-passe de encriptação</label><input type="password" id="sPass" autocomplete="new-password"></div>
     <div class="field" id="sPass2Wrap" style="display:none"><label>Repete a palavra-passe (primeira vez)</label><input type="password" id="sPass2" autocomplete="new-password"></div>
