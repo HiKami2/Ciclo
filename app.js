@@ -430,12 +430,12 @@ function vPlano(){
     <button class="btn small" data-act="copysal">Repetir salário de janeiro</button></div>
   <div class="panel" style="margin-bottom:16px"><h2>🎯 Objetivos de poupança <button class="btn small" data-act="newgoal" style="margin-left:auto">+ Novo objetivo</button></h2>
     <div class="goals">${DB.config.destinos.map(goalCard).join("")||`<div class="empty">Cria um objetivo: com valor e data (ex.: Férias, 1500 € até junho) ou sem data final (ex.: Fundo de emergência).</div>`}</div></div>
-  <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos</h2><table>
-    <tr><th>Mês</th><th>Salário</th><th>Outros</th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
-    ${MESES.map((n,i)=>{const k=perKey(y,i+1);const p=planOf(k)||{};return `<tr><td>${n}</td>
-      <td><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="salario" value="${p.salario??""}"></td>
-      <td><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="outros" value="${p.outros||""}"></td>
-      <td class="lg-cell"><input type="number" step="0.01" data-plan="${k}" data-f="cartao" value="${p.cartao||""}"></td>
+  <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos <span class="tot">${eur(MESES.reduce((t,_,i)=>t+rendOf(perKey(y,i+1)),0))}</span></h2><table>
+    <tr><th>Mês</th><th>Salário</th><th>Outros <span class="lg-only" style="text-transform:none;font-weight:500">(subsídios, extras)</span></th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
+    ${MESES.map((n,i)=>{const k=perKey(y,i+1);const p=planOf(k)||{};const f2=v=>v?(+v).toFixed(2):"";return `<tr class="${k===curPeriod()?"cur":""}"><td>${n}</td>
+      <td><label class="money"><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="salario" value="${f2(p.salario)}" placeholder="0,00"><span>€</span></label></td>
+      <td><label class="money"><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="outros" value="${f2(p.outros)}" placeholder="0,00"><span>€</span></label></td>
+      <td class="lg-cell"><label class="money"><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="cartao" value="${f2(p.cartao)}" placeholder="0,00"><span>€</span></label></td>
       <td class="lg-cell" style="text-align:left"><input class="wide" type="text" data-plan="${k}" data-f="notas" value="${esc(p.notas||"")}"></td></tr>`}).join("")}
   </table></div>
   <div class="panel inline-table" style="overflow:auto"><h2>Poupança do ano <span class="tot">${eur(DB.poupancas.filter(p=>perParts(p.per)[0]===y).reduce((s,p)=>s+(+p.valor||0),0))}</span></h2><table>

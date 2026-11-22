@@ -335,3 +335,11 @@ td.wrap{white-space:normal;overflow-wrap:anywhere}
 select{background-color:var(--btn-bg);border:1px solid var(--btn-border);box-shadow:inset 0 1px 0 var(--btn-hi),var(--btn-sh)}
 select:focus{border-color:var(--accent)}
 .panel h2 .btn{white-space:nowrap;flex:none}
+
+/* campos de dinheiro */
+.money{display:inline-flex;align-items:center;gap:4px;background:var(--soft);border:1.5px solid transparent;border-radius:var(--r-sm);padding:0 10px 0 4px;transition:border-color .15s,box-shadow .15s,background .15s;max-width:100%}
+.money:focus-within{border-color:var(--accent);background:var(--panel);box-shadow:0 0 0 4px var(--accent-soft)}
+.money input{background:transparent !important;border:0 !important;box-shadow:none !important;min-height:40px;width:110px;text-align:right;padding:6px 2px !important;font-variant-numeric:tabular-nums;font-weight:600}
+.money input::placeholder{font-weight:400;color:var(--muted);opacity:.6}
+.money span{color:var(--muted);font-weight:600}
+@media (max-width:700px){.money{width:100%}.money input{width:100%;min-width:0;max-width:none}}
