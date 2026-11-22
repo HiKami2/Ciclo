@@ -38,7 +38,8 @@ nav.side .grow{flex:1}
 .save-state{font-size:12px;color:var(--muted);padding:12px;border-radius:12px;background:var(--soft);line-height:1.45;cursor:pointer}
 .save-state b{color:var(--ink)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 0%,transparent)}
-main{padding:30px 36px 100px;max-width:1240px;width:100%;min-width:0}
+main{padding:30px clamp(20px,3vw,48px) 100px;max-width:1800px;width:100%;min-width:0;margin:0 auto}
+@media (min-width:1500px){.cards{grid-template-columns:repeat(7,minmax(0,1fr))}.card.hero{grid-column:span 1}}
 h1{font-size:28px;margin:0 0 4px;letter-spacing:-.025em;font-weight:760}
 .sub{color:var(--muted);margin-bottom:20px}
 .muted{color:var(--muted)}
