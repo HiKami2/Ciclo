@@ -576,5 +576,8 @@ async function doSyncSetup(btn){
   try{const v=localStorage.getItem(LS_KEY+".view");if(v)UI.view=v}catch(_){}
   render();
   if(SYNC&&KEY)syncNow();
-  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if("serviceWorker" in navigator&&location.protocol==="https:"){
+    const had=!!navigator.serviceWorker.controller;let reloaded=false;
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&!reloaded&&!editing){reloaded=true;location.reload()}});
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}
 })();
