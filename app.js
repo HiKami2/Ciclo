@@ -243,14 +243,15 @@ function vMensal(){
       ${chip(x)}<div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div></div>`).join(""):`<div class="empty">Ainda nada neste mês.</div>`;
   const tot=arr=>arr.reduce((t,x)=>t+gasto(x)-recebido(x),0);
   return `<h1>Controlo mensal</h1>
-  <div class="sub">O mês começa no dia do ordenado (${DB.config.diaOrdenado}, ou dia útil seguinte).</div>
+  <div class="sub lg-only">O mês começa no dia do ordenado (${DB.config.diaOrdenado}, ou dia útil seguinte).</div>
   <div class="toolbar">
     <select id="selAno">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select>
-    <div class="seg" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
+    <select id="selMes" class="sm-only">${MESES.map((n,i)=>`<option value="${i+1}" ${i+1===m?"selected":""}>${n}</option>`).join("")}</select>
+    <div class="seg lg-only" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
     <button class="btn small" data-act="hoje">Mês atual</button>
   </div>
   <div class="toolbar"><button class="iconbtn" data-act="prev">‹</button><div class="period">${MESES[m-1]} ${y}</div><button class="iconbtn" data-act="next">›</button>
-    <span class="muted">Ordenado a ${fmtDshort(s)} · mês até ${fmtD(iso(e))}</span></div>
+    <span class="muted period-info">Ordenado a ${fmtDshort(s)} · até ${fmtDshort(e)}</span></div>
   <div class="cards">
     <div class="card hero"><div class="lbl">Plafond restante</div><div class="val">${eur(S.plafond)}</div><div class="bar"><i style="width:${(used*100).toFixed(0)}%"></i></div><div class="hint">${(used*100).toFixed(0)}% do rendimento já comprometido</div></div>
     <div class="card"><div class="lbl">Rendimento</div><div class="val">${eur(S.rend)}</div><div class="hint">${S.rec?"+ "+eur(S.rec)+" recebido":"&nbsp;"}</div></div>
@@ -306,14 +307,14 @@ function vAnual(){
   <div class="panel" style="margin-bottom:16px"><h2>Gastos por mês</h2><div class="chart">${svg}</div>
     <div class="legend"><span style="--c:var(--accent)">Fixas</span><span style="--c:color-mix(in srgb,var(--accent) 45%,transparent)">Variáveis</span><span style="--c:var(--green)">Rendimento</span></div></div>
   <div class="panel" style="margin-bottom:16px;overflow:auto"><table>
-    <tr><th>Mês</th><th>Rendimento</th><th>Fixas</th><th>Variáveis</th><th>Recebido</th><th>Poupança</th><th>Plafond</th><th>Por pagar</th></tr>
-    ${rows.map(r=>`<tr class="click ${r.k===cur?"cur":""}" data-gomes="${r.k}"><td>${MESES[r.m-1]}</td>${r.has?`<td>${eur(r.S.rend)}</td><td>${eur(r.S.fixas)}</td><td>${eur(r.S.variaveis)}</td><td class="pos">${r.S.rec?"+ "+eur(r.S.rec):"–"}</td><td>${eur(r.S.poup)}</td><td class="${cls(r.S.plafond)}"><b>${eur(r.S.plafond)}</b></td><td>${r.S.pend?eur(r.S.pend):"–"}</td>`:`<td colspan="7" class="muted" style="text-align:center">sem dados</td>`}</tr>`).join("")}
-    <tr class="total"><td>Total</td><td>${eur(T.rend)}</td><td>${eur(T.fixas)}</td><td>${eur(T.variaveis)}</td><td>+ ${eur(T.rec)}</td><td>${eur(T.poup)}</td><td class="${cls(T.plafond)}">${eur(T.plafond)}</td><td>${eur(T.pend)}</td></tr>
+    <tr><th>Mês</th><th class="lg-cell">Rendimento</th><th>Fixas</th><th>Variáveis</th><th class="lg-cell">Recebido</th><th class="lg-cell">Poupança</th><th>Plafond</th><th class="lg-cell">Por pagar</th></tr>
+    ${rows.map(r=>`<tr class="click ${r.k===cur?"cur":""}" data-gomes="${r.k}"><td><span class="lg-only">${MESES[r.m-1]}</span><span class="sm-only">${MES3[r.m-1]}</span></td>${r.has?`<td class="lg-cell">${eur(r.S.rend)}</td><td>${eur(r.S.fixas)}</td><td>${eur(r.S.variaveis)}</td><td class="pos lg-cell">${r.S.rec?"+ "+eur(r.S.rec):"–"}</td><td class="lg-cell">${eur(r.S.poup)}</td><td class="${cls(r.S.plafond)}"><b>${eur(r.S.plafond)}</b></td><td class="lg-cell">${r.S.pend?eur(r.S.pend):"–"}</td>`:`<td colspan="7" class="muted" style="text-align:center">sem dados</td>`}</tr>`).join("")}
+    <tr class="total"><td>Total</td><td class="lg-cell">${eur(T.rend)}</td><td>${eur(T.fixas)}</td><td>${eur(T.variaveis)}</td><td class="lg-cell">+ ${eur(T.rec)}</td><td class="lg-cell">${eur(T.poup)}</td><td class="${cls(T.plafond)}">${eur(T.plafond)}</td><td class="lg-cell">${eur(T.pend)}</td></tr>
   </table></div>
   <div class="grid2">
     <div class="panel" style="overflow:auto"><h2>Por categoria</h2><table>
-      <tr><th>Categoria</th><th>Gasto</th><th>Média/mês</th><th>Orçamento</th><th style="width:30%">Peso</th></tr>
-      ${catArr.map(([n,v])=>{const md=v.g/nMeses,o=orc(n);return `<tr><td>${esc(n)}${v.r?` <span class="muted">(+${eur(v.r)})</span>`:""}</td><td>${eur(v.g)}</td><td class="${o&&md>o?"neg":""}">${eur(md)}</td><td>${o?eur(o):"–"}</td><td><div class="catbar"><i style="width:${gT?(v.g/gT*100).toFixed(1):0}%"></i></div></td></tr>`}).join("")||`<tr><td colspan="5" class="muted">Sem dados</td></tr>`}
+      <tr><th>Categoria</th><th>Gasto</th><th>Média/mês</th><th class="lg-cell">Orçamento</th><th class="lg-cell" style="width:30%">Peso</th></tr>
+      ${catArr.map(([n,v])=>{const md=v.g/nMeses,o=orc(n);return `<tr><td>${esc(n)}${v.r?` <span class="muted">(+${eur(v.r)})</span>`:""}</td><td>${eur(v.g)}</td><td class="${o&&md>o?"neg":""}">${eur(md)}</td><td class="lg-cell">${o?eur(o):"–"}</td><td class="lg-cell"><div class="catbar"><i style="width:${gT?(v.g/gT*100).toFixed(1):0}%"></i></div></td></tr>`}).join("")||`<tr><td colspan="5" class="muted">Sem dados</td></tr>`}
     </table></div>
     <div class="panel" style="overflow:auto"><h2>Poupança por destino</h2><table>
       <tr><th>Destino</th><th>No ano</th><th>Acumulado</th></tr>
@@ -331,14 +332,16 @@ function vMovimentos(){
   const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);
   return `<h1>Movimentos</h1><div class="sub">Todos os registos. Valor negativo = dinheiro recebido.</div>
   <div class="toolbar">
-    <input type="text" id="fq" placeholder="Pesquisar…" value="${esc(f.q)}" style="min-width:200px">
+    <input type="search" id="fq" placeholder="Pesquisar…" value="${esc(f.q)}" style="min-width:200px">
     <select id="fano"><option value="">Todos os anos</option>${ys.map(a=>`<option ${+f.ano===a?"selected":""}>${a}</option>`).join("")}</select>
     <select id="fmes"><option value="">Todos os meses</option>${MESES.map((n,i)=>`<option value="${i+1}" ${+f.mes===i+1?"selected":""}>${n}</option>`).join("")}</select>
     <select id="ftipo"><option value="">Fixas e variáveis</option><option ${f.tipo==="Fixa"?"selected":""}>Fixa</option><option ${f.tipo==="Variável"?"selected":""}>Variável</option></select>
     <select id="fcat"><option value="">Todas as categorias</option>${DB.config.categorias.map(c=>`<option ${f.cat===c.nome?"selected":""}>${esc(c.nome)}</option>`).join("")}</select>
-    <span class="muted">${arr.length} registos · gasto ${eur(tg)} · recebido ${eur(tr)}</span>
+    <span class="muted filter-sum">${arr.length} registos · gasto ${eur(tg)} · recebido ${eur(tr)}</span>
   </div>
-  <div class="panel" style="overflow:auto"><table>
+  <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">
+      <div><div class="d">${esc(x.desc)}</div><div class="m">${fmtD(x.data)} · ${p?MES3[mm-1]+" "+yy:"—"} · ${esc(x.cat||"")}</div></div>${chip(x)}<div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div></div>`}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
+  <div class="panel lg-block" style="overflow:auto"><table>
     <tr><th>Data</th><th style="text-align:left">Descrição</th><th style="text-align:left">Categoria</th><th style="text-align:left">Tipo</th><th style="text-align:left">Mês</th><th>Situação</th><th>Valor</th></tr>
     ${arr.slice(0,600).map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
   </table>${arr.length>600?`<div class="empty">A mostrar 600 de ${arr.length}. Usa os filtros.</div>`:""}${!arr.length?`<div class="empty">Nada encontrado.</div>`:""}</div>`}
@@ -348,14 +351,14 @@ function vPlano(){
   const y=UI.ano;const ys=yearsAvail();
   return `<h1>Plano</h1><div class="sub">Rendimento e poupança de cada mês de ${y}.</div>
   <div class="toolbar"><button class="iconbtn" data-act="yprev">‹</button><select id="selAnoA">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select><button class="iconbtn" data-act="ynext">›</button>
-    <button class="btn small" data-act="copysal">Repetir salário de janeiro para o ano todo</button></div>
+    <button class="btn small" data-act="copysal">Repetir salário de janeiro</button></div>
   <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos</h2><table>
-    <tr><th>Mês</th><th>Salário líquido</th><th>Outros rendimentos</th><th>Cartão refeição</th><th style="text-align:left">Notas</th></tr>
+    <tr><th>Mês</th><th>Salário</th><th>Outros</th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
     ${MESES.map((n,i)=>{const k=perKey(y,i+1);const p=planOf(k)||{};return `<tr><td>${n}</td>
-      <td><input type="number" step="0.01" data-plan="${k}" data-f="salario" value="${p.salario??""}"></td>
-      <td><input type="number" step="0.01" data-plan="${k}" data-f="outros" value="${p.outros||""}"></td>
-      <td><input type="number" step="0.01" data-plan="${k}" data-f="cartao" value="${p.cartao||""}"></td>
-      <td style="text-align:left"><input class="wide" type="text" data-plan="${k}" data-f="notas" value="${esc(p.notas||"")}"></td></tr>`}).join("")}
+      <td><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="salario" value="${p.salario??""}"></td>
+      <td><input type="number" inputmode="decimal" step="0.01" data-plan="${k}" data-f="outros" value="${p.outros||""}"></td>
+      <td class="lg-cell"><input type="number" step="0.01" data-plan="${k}" data-f="cartao" value="${p.cartao||""}"></td>
+      <td class="lg-cell" style="text-align:left"><input class="wide" type="text" data-plan="${k}" data-f="notas" value="${esc(p.notas||"")}"></td></tr>`}).join("")}
   </table></div>
   <div class="panel inline-table" style="overflow:auto"><h2>Poupança do ano <span class="tot">${eur(DB.poupancas.filter(p=>perParts(p.per)[0]===y).reduce((s,p)=>s+(+p.valor||0),0))}</span></h2><table>
     <tr><th>Mês</th><th style="text-align:left">Destino</th><th>Valor</th><th></th></tr>
@@ -404,7 +407,7 @@ function openEditor(mv,preset={}){
   $("#modal").innerHTML=`<header>${isNew?"Novo movimento":"Editar movimento"}<button class="iconbtn x" data-act="close">✕</button></header>
   <form class="body" id="mvForm" autocomplete="off">
     <div class="seg" id="kind"><button type="button" data-k="g" class="${rec?"":"on"}">Gasto</button><button type="button" data-k="r" class="${rec?"on":""}">Recebido</button></div>
-    <div class="field"><label>Valor (€)</label><input class="bigval" type="number" step="0.01" min="0" id="fVal" value="${editing.valor==null?"":Math.abs(editing.valor)}" placeholder="0,00"></div>
+    <div class="field"><label>Valor (€)</label><input class="bigval" type="number" inputmode="decimal" step="0.01" min="0" id="fVal" value="${editing.valor==null?"":Math.abs(editing.valor)}" placeholder="0,00"></div>
     <div class="field"><label>Descrição</label><input type="text" id="fDesc" list="descList" value="${esc(editing.desc)}" required><datalist id="descList">${descs.map(d=>`<option value="${esc(d)}">`).join("")}</datalist></div>
     <div class="two"><div class="field"><label>Data</label><input type="date" id="fData" value="${editing.data||""}"></div>
       <div class="field"><label>Tipo</label><select id="fTipo"><option ${editing.tipo==="Fixa"?"selected":""}>Fixa</option><option ${editing.tipo!=="Fixa"?"selected":""}>Variável</option></select></div></div>
@@ -454,6 +457,7 @@ function bindView(){
   const on=(sel,ev,fn)=>{const e=$(sel);if(e)e.addEventListener(ev,fn)};
   on("#selAno","change",e=>{UI.per=perKey(+e.target.value,perParts(UI.per)[1]);render()});
   on("#segMes","click",e=>{const b=e.target.closest("button");if(b){UI.per=perKey(perParts(UI.per)[0],+b.dataset.m);render()}});
+  on("#selMes","change",e=>{UI.per=perKey(perParts(UI.per)[0],+e.target.value);render()});
   on("#selAnoA","change",e=>{UI.ano=+e.target.value;render()});
   const ff=(id,key)=>on(id,id==="#fq"?"input":"change",e=>{UI.filtro[key]=e.target.value;const pos=e.target.selectionStart;render();if(id==="#fq"){const q=$("#fq");q.focus();q.setSelectionRange(pos,pos)}});
   ff("#fq","q");ff("#fano","ano");ff("#fmes","mes");ff("#ftipo","tipo");ff("#fcat","cat");
@@ -518,6 +522,12 @@ $("#importInput").addEventListener("change",async e=>{const f=e.target.files[0];
 window.addEventListener("beforeunload",e=>{if(pending&&SYNC&&KEY&&navigator.onLine){e.preventDefault();e.returnValue=""}});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&SYNC&&KEY)syncNow();else if(pending&&SYNC&&KEY)syncNow()});
 window.addEventListener("online",()=>{if(SYNC&&KEY)syncNow()});
+$("#syncMini").addEventListener("click",()=>{if(SYNC&&KEY)syncNow();else openSyncSetup()});
+// deslizar para mudar de mês (telemóvel)
+(()=>{let x0=null,y0=null;const el=$("#main");
+  el.addEventListener("touchstart",e=>{if(UI.view!=="mensal"||e.touches.length!==1){x0=null;return}x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+  el.addEventListener("touchend",e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;
+    if(Math.abs(dx)>70&&Math.abs(dy)<45){UI.per=addMonths(UI.per,dx<0?1:-1);render();toast(MESES[perParts(UI.per)[1]-1]+" "+perParts(UI.per)[0])}},{passive:true})})();
 setInterval(()=>{if(document.visibilityState==="visible"&&SYNC&&KEY&&!syncing)syncNow()},120000);
 
 /* ================= Configuração da sincronização ================= */
