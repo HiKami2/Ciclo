@@ -224,11 +224,18 @@ function renderSaveState(){
   else if(syncState==="offline")h=`<span class="dot" style="background:var(--amber)"></span><b>Sem internet</b><br>Guardado no dispositivo; sincroniza depois`;
   else if(syncState==="error"||syncState==="locked")h=`<span class="dot" style="background:var(--red)"></span><b>Por sincronizar</b><br>${esc(syncErr)}`;
   else h=`<span class="dot" style="background:var(--green)"></span><b>${pending?"Por sincronizar…":"Sincronizado"}</b><br>${lastSync?"às "+hm(lastSync):""} · 🔒 encriptado`;
-  e.innerHTML=h;const m=$("#syncMini");if(m)m.innerHTML=h.replace(/<br>/g," · ")}
+  e.innerHTML=h;const m=$("#syncMini");if(m)m.innerHTML=h.split("<br>")[0].replace(/<\/?b>/g,"")}
 
 function yearsAvail(){const ys=new Set([new Date().getFullYear()]);
   DB.movimentos.forEach(m=>{const p=periodOf(m);if(p)ys.add(perParts(p)[0])});DB.plano.forEach(p=>ys.add(perParts(p.per)[0]));
   const a=[...ys].sort();a.push(a[a.length-1]+1);return a}
+const CAT_ICON={"Subscrições":"📺","Carro":"🚗","Combustível":"⛽","Casa":"🏠","Restauração":"🍽️","Compras":"🛍️","Viagens":"✈️","Lazer":"🎭","Prendas":"🎁","Apostas":"🎲","Família e amigos":"👨‍👩‍👧","Saúde e desporto":"💪","Banco e taxas":"🏦","Dia a dia":"☕","Entradas":"💶","Ajustes":"⚖️","Outros":"📦"};
+const CAT_HUE={"Subscrições":265,"Carro":215,"Combustível":30,"Casa":160,"Restauração":12,"Compras":330,"Viagens":195,"Lazer":285,"Prendas":350,"Apostas":45,"Família e amigos":140,"Saúde e desporto":100,"Banco e taxas":225,"Dia a dia":25,"Entradas":145,"Ajustes":0,"Outros":40};
+const catIcon=c=>CAT_ICON[c]||"🏷️";
+function avatar(c){const h=CAT_HUE[c];return `<div class="av" ${h!=null?`style="background:hsl(${h} 80% 50% / .13)"`:""}>${catIcon(c)}</div>`}
+function rowHTML(x,meta){return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">${avatar(x.cat)}
+  <div class="txt"><div class="d">${esc(x.desc)}</div><div class="m">${meta}</div></div>
+  <div class="rt"><div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div>${chip(x)}</div></div>`}
 function chip(m){const s=status(m);return `<span class="chip ${s.k}">${s.txt}</span>`}
 
 /* ---------- Mensal ---------- */
@@ -238,16 +245,13 @@ function vMensal(){
   const ys=yearsAvail();
   const ms=movsOf(k).sort((a,b)=>(a.data||"9999").localeCompare(b.data||"9999"));
   const fix=ms.filter(x=>x.tipo==="Fixa"),vari=ms.filter(x=>x.tipo!=="Fixa");
-  const list=(arr)=>arr.length?arr.map(x=>`<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">
-      <div><div class="d">${esc(x.desc)}</div><div class="m">${fmtD(x.data)} · ${esc(x.cat||"Sem categoria")}${x.ajuste?" · ajustado":""}</div></div>
-      ${chip(x)}<div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div></div>`).join(""):`<div class="empty">Ainda nada neste mês.</div>`;
+  const list=(arr)=>arr.length?arr.map(x=>rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${esc(x.cat||"Sem categoria")}${x.ajuste?" · ajustado":""}`)).join(""):`<div class="empty">Ainda nada neste mês.</div>`;
   const tot=arr=>arr.reduce((t,x)=>t+gasto(x)-recebido(x),0);
   return `<h1>Controlo mensal</h1>
   <div class="sub lg-only">O mês começa no dia do ordenado (${DB.config.diaOrdenado}, ou dia útil seguinte).</div>
   <div class="toolbar">
     <select id="selAno">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select>
-    <select id="selMes" class="sm-only">${MESES.map((n,i)=>`<option value="${i+1}" ${i+1===m?"selected":""}>${n}</option>`).join("")}</select>
-    <div class="seg lg-only" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
+    <div class="seg" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
     <button class="btn small" data-act="hoje">Mês atual</button>
   </div>
   <div class="toolbar"><button class="iconbtn" data-act="prev">‹</button><div class="period">${MESES[m-1]} ${y}</div><button class="iconbtn" data-act="next">›</button>
@@ -339,8 +343,7 @@ function vMovimentos(){
     <select id="fcat"><option value="">Todas as categorias</option>${DB.config.categorias.map(c=>`<option ${f.cat===c.nome?"selected":""}>${esc(c.nome)}</option>`).join("")}</select>
     <span class="muted filter-sum">${arr.length} registos · gasto ${eur(tg)} · recebido ${eur(tr)}</span>
   </div>
-  <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">
-      <div><div class="d">${esc(x.desc)}</div><div class="m">${fmtD(x.data)} · ${p?MES3[mm-1]+" "+yy:"—"} · ${esc(x.cat||"")}</div></div>${chip(x)}<div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div></div>`}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
+  <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
   <div class="panel lg-block" style="overflow:auto"><table>
     <tr><th>Data</th><th style="text-align:left">Descrição</th><th style="text-align:left">Categoria</th><th style="text-align:left">Tipo</th><th style="text-align:left">Mês</th><th>Situação</th><th>Valor</th></tr>
     ${arr.slice(0,600).map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
@@ -406,12 +409,12 @@ function openEditor(mv,preset={}){
   const ys=yearsAvail();
   $("#modal").innerHTML=`<header>${isNew?"Novo movimento":"Editar movimento"}<button class="iconbtn x" data-act="close">✕</button></header>
   <form class="body" id="mvForm" autocomplete="off">
-    <div class="seg" id="kind"><button type="button" data-k="g" class="${rec?"":"on"}">Gasto</button><button type="button" data-k="r" class="${rec?"on":""}">Recebido</button></div>
-    <div class="field"><label>Valor (€)</label><input class="bigval" type="number" inputmode="decimal" step="0.01" min="0" id="fVal" value="${editing.valor==null?"":Math.abs(editing.valor)}" placeholder="0,00"></div>
-    <div class="field"><label>Descrição</label><input type="text" id="fDesc" list="descList" value="${esc(editing.desc)}" required><datalist id="descList">${descs.map(d=>`<option value="${esc(d)}">`).join("")}</datalist></div>
+    <div class="seg full kind" id="kind"><button type="button" data-k="g" class="${rec?"":"on"}">− Gasto</button><button type="button" data-k="r" class="${rec?"on":""}">+ Recebido</button></div>
+    <label class="amount"><input type="number" inputmode="decimal" step="0.01" min="0" id="fVal" value="${editing.valor==null?"":Math.abs(editing.valor)}" placeholder="0,00" aria-label="Valor"><span>€</span></label>
+    <div class="field"><label>Descrição</label><input type="text" id="fDesc" placeholder="Ex.: Supermercado, Gasolina…" enterkeyhint="done" list="descList" value="${esc(editing.desc)}" required><datalist id="descList">${descs.map(d=>`<option value="${esc(d)}">`).join("")}</datalist></div>
     <div class="two"><div class="field"><label>Data</label><input type="date" id="fData" value="${editing.data||""}"></div>
-      <div class="field"><label>Tipo</label><select id="fTipo"><option ${editing.tipo==="Fixa"?"selected":""}>Fixa</option><option ${editing.tipo!=="Fixa"?"selected":""}>Variável</option></select></div></div>
-    <div class="field"><label>Categoria</label><select id="fCat"><option value="">—</option>${DB.config.categorias.map(c=>`<option ${c.nome===editing.cat?"selected":""}>${esc(c.nome)}</option>`).join("")}</select></div>
+      <div class="field"><label>Tipo</label><div class="seg full" id="tipoSeg"><button type="button" data-t="Fixa">Fixa</button><button type="button" data-t="Variável">Variável</button></div><input type="hidden" id="fTipo" value="${editing.tipo==="Fixa"?"Fixa":"Variável"}"></div></div>
+    <div class="field"><label>Categoria</label><div class="catchips" id="catChips">${DB.config.categorias.map(c=>`<button type="button" data-c="${esc(c.nome)}">${catIcon(c.nome)} ${esc(c.nome)}</button>`).join("")}</div><input type="hidden" id="fCat" value="${esc(editing.cat||"")}"></div>
     <label class="toggle"><input type="checkbox" id="fPaus" ${editing.pausado?"checked":""}> Pausado (não conta nos gastos)</label>
     <details ${editing.ajuste||editing.nota?"open":""}><summary>Mais opções</summary><div style="display:grid;gap:12px;margin-top:10px">
       <div class="field"><label>Contar noutro mês (opcional)</label><div class="two"><select id="fAjM"><option value="">Automático (pela data)</option>${MESES.map((n,i)=>`<option value="${i+1}" ${editing.ajuste&&perParts(editing.ajuste)[1]===i+1?"selected":""}>${n}</option>`).join("")}</select>
@@ -426,8 +429,12 @@ function openEditor(mv,preset={}){
     if(am)k=perKey(+$("#fAjY").value,+am);else if(d)k=periodOfDate(parseISO(d));
     $("#fInfo").textContent=k?`Conta para ${MESES[perParts(k)[1]-1]} de ${perParts(k)[0]}.`:"Sem data: escolhe o mês em “Mais opções”."};
   ["fData","fAjM","fAjY"].forEach(id=>$("#"+id).addEventListener("change",info));info();
+  const sync=()=>{$("#tipoSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===$("#fTipo").value));
+    $("#catChips").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.c===$("#fCat").value))};sync();
+  $("#tipoSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(b){$("#fTipo").value=b.dataset.t;sync()}});
+  $("#catChips").addEventListener("click",e=>{const b=e.target.closest("button");if(b){$("#fCat").value=$("#fCat").value===b.dataset.c?"":b.dataset.c;sync()}});
   $("#fDesc").addEventListener("change",()=>{const last=sortedMovs().reverse().find(m=>m.desc===$("#fDesc").value);
-    if(last&&isNew){$("#fCat").value=last.cat||"";$("#fTipo").value=last.tipo;if(!$("#fVal").value&&last.valor!=null)$("#fVal").value=Math.abs(last.valor)}});
+    if(last&&isNew){$("#fCat").value=last.cat||"";$("#fTipo").value=last.tipo;sync();if(!$("#fVal").value&&last.valor!=null)$("#fVal").value=Math.abs(last.valor)}});
   $("#kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#kind").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))});
   $("#mvForm").addEventListener("submit",e=>{e.preventDefault();saveEditor()});
   setTimeout(()=>(isNew?$("#fVal"):$("#fDesc")).focus(),30)}
@@ -457,7 +464,7 @@ function bindView(){
   const on=(sel,ev,fn)=>{const e=$(sel);if(e)e.addEventListener(ev,fn)};
   on("#selAno","change",e=>{UI.per=perKey(+e.target.value,perParts(UI.per)[1]);render()});
   on("#segMes","click",e=>{const b=e.target.closest("button");if(b){UI.per=perKey(perParts(UI.per)[0],+b.dataset.m);render()}});
-  on("#selMes","change",e=>{UI.per=perKey(perParts(UI.per)[0],+e.target.value);render()});
+  {const sm=$("#segMes .on");if(sm&&sm.scrollIntoView&&window.innerWidth<700)sm.parentElement.scrollLeft=sm.offsetLeft-sm.parentElement.clientWidth/2+sm.clientWidth/2}
   on("#selAnoA","change",e=>{UI.ano=+e.target.value;render()});
   const ff=(id,key)=>on(id,id==="#fq"?"input":"change",e=>{UI.filtro[key]=e.target.value;const pos=e.target.selectionStart;render();if(id==="#fq"){const q=$("#fq");q.focus();q.setSelectionRange(pos,pos)}});
   ff("#fq","q");ff("#fano","ano");ff("#fmes","mes");ff("#ftipo","tipo");ff("#fcat","cat");
