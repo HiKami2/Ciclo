@@ -348,3 +348,13 @@ tr.cur td{background:transparent}
 tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent);color:var(--accent);font-weight:700}
 tr.cur .money{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 6%,var(--soft))}
 tr.cur .money span{color:var(--accent)}
+
+/* prestações */
+.prestwrap{background:var(--soft);border-radius:var(--r-md);padding:12px 14px}
+.pbadge{display:inline-block;font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-soft);padding:1px 6px;border-radius:6px;margin-right:2px}
+.pnext{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:4px 16px 4px}
+.pnext>div{background:var(--soft);border-radius:12px;padding:8px 10px;display:grid;gap:2px;font-variant-numeric:tabular-nums}
+.pnext span{font-size:11.5px;text-transform:capitalize}
+.pline{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;margin:-4px 0 16px;padding:11px 14px;border-radius:var(--r-md);
+  background:var(--btn-bg);border:1px solid var(--btn-border);box-shadow:inset 0 1px 0 var(--btn-hi),var(--btn-sh);font-size:14px}
+.pline:hover{transform:translateY(-1px)}

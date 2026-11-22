@@ -234,7 +234,7 @@ const CAT_HUE={"Subscrições":265,"Carro":215,"Combustível":30,"Casa":160,"Res
 const catIcon=c=>CAT_ICON[c]||"🏷️";
 function avatar(c){const h=CAT_HUE[c];return `<div class="av" ${h!=null?`style="background:hsl(${h} 80% 50% / .13)"`:""}>${catIcon(c)}</div>`}
 function avatarMini(c){return `<span class="avm">${catIcon(c)}</span>`}
-function rowHTML(x,meta){return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">${avatar(x.cat)}
+function rowHTML(x,meta){if(x.prest)meta=`<span class="pbadge">💳 ${x.prest.n}/${x.prest.total}</span> `+meta;return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">${avatar(x.cat)}
   <div class="txt"><div class="d">${esc(x.desc)}</div><div class="m">${meta}</div></div>
   <div class="rt"><div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div>${chip(x)}</div></div>`}
 function chip(m){const s=status(m);return `<span class="chip ${s.k}">${s.txt}</span>`}
@@ -266,6 +266,8 @@ function vMensal(){
     <div class="card"><div class="lbl">Balanço atual</div><div class="val">${eur(S.balanco)}</div><div class="hint">só o que já foi pago</div></div>
     <div class="card"><div class="lbl">Por pagar</div><div class="val" style="color:var(--amber)">${eur(S.pend)}</div></div>
   </div>
+  ${(()=>{const pm=movsOf(k).filter(x=>x.prest);if(!pm.length)return"";const v=pm.reduce((t,x)=>t+gasto(x),0);
+    return `<button class="pline" data-act="goprest">💳 Prestações neste mês: <b>${eur(v)}</b> <span class="muted">(${pm.length})</span><span class="muted" style="margin-left:auto">ver todas ›</span></button>`})()}
   ${S.rend===0?`<div class="banner info">Ainda não tens rendimento definido para ${MESES[m-1]} ${y}. <button class="btn small" data-act="goplano">Definir no Plano</button></div>`:""}
   <div class="grid2">
     <div class="panel"><h2>Despesas fixas <span class="count">${fix.length} itens</span><span class="tot">${eur(tot(fix))}</span></h2>
@@ -423,6 +425,20 @@ function saveGoal(){
   else if(nome!==orig){DB.config.destinos=DB.config.destinos.map(d=>d===orig?nome:d);DB.poupancas.forEach(p=>{if(p.destino===orig)p.destino=nome});delete DB.config.metas[orig]}
   DB.config.metas[nome]=meta;closeModal();changed();toast("Objetivo guardado ✔")}
 
+function prestPanel(){
+  const gs=prestGroups(),ativos=gs.filter(g=>g.falta>0.004),feitos=gs.length-ativos.length;
+  const divida=ativos.reduce((s,g)=>s+g.falta,0);const cur=curPeriod();
+  const prox=[0,1,2,3].map(i=>{const k=addMonths(cur,i);return{k,v:DB.movimentos.filter(m=>m.prest&&periodOf(m)===k&&status(m).k==="pend").reduce((s,m)=>s+gasto(m),0)}});
+  return `<div class="panel" id="prestPanel" style="margin-bottom:16px"><h2>💳 Prestações em curso <span class="tot">${ativos.length?eur(divida)+" <span class=\"muted\" style=\"font-weight:500;font-size:12px\">em dívida</span>":""}</span></h2>
+    ${ativos.length?`<div class="pnext">${prox.map(p=>`<div><span class="muted">${MES3[perParts(p.k)[1]-1]}</span><b>${p.v?eur(p.v):"–"}</b></div>`).join("")}</div>
+    <div class="goals">${ativos.map(g=>`<div class="goal" data-edit="${g.prox?g.prox.id:g.items[0].id}">
+      <div class="goal-h"><div class="goal-n">${catIcon(g.cat)} ${esc(g.nome)}</div><span class="chip pend">${g.feitas}/${g.n} pagas</span></div>
+      <div class="goal-v">${eur(g.falta)} <span class="muted">por pagar de ${eur(g.total)}</span></div>
+      <div class="gbar"><i style="width:${(g.total?g.pago/g.total*100:0).toFixed(1)}%"></i></div>
+      <div class="goal-m">${g.prox?`Próxima: <b>${eur(gasto(g.prox))}</b> a ${fmtD(g.prox.data)}`:""}</div>
+      <div class="goal-m muted">Termina a ${fmtD(g.fim)}</div></div>`).join("")}</div>`
+    :`<div class="empty">Sem prestações em curso. Para criar, usa <b>Adicionar</b> → “Pagar em prestações”.</div>`}
+    ${feitos?`<div class="muted" style="font-size:12.5px;padding:0 18px 14px">✔ ${feitos} ${feitos===1?"compra já paga":"compras já pagas"} na totalidade.</div>`:""}</div>`}
 function vPlano(){
   const y=UI.ano;const ys=yearsAvail();
   return `<h1>Plano</h1><div class="sub">Rendimento e poupança de cada mês de ${y}.</div>
@@ -430,6 +446,7 @@ function vPlano(){
     <button class="btn small" data-act="copysal">Repetir salário de janeiro</button></div>
   <div class="panel" style="margin-bottom:16px"><h2>🎯 Objetivos de poupança <button class="btn small" data-act="newgoal" style="margin-left:auto">+ Novo objetivo</button></h2>
     <div class="goals">${DB.config.destinos.map(goalCard).join("")||`<div class="empty">Cria um objetivo: com valor e data (ex.: Férias, 1500 € até junho) ou sem data final (ex.: Fundo de emergência).</div>`}</div></div>
+  ${prestPanel()}
   <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos <span class="tot">${eur(MESES.reduce((t,_,i)=>t+rendOf(perKey(y,i+1)),0))}</span></h2><table>
     <tr><th>Mês</th><th>Salário</th><th>Outros <span class="lg-only" style="text-transform:none;font-weight:500">(subsídios, extras)</span></th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
     ${MESES.map((n,i)=>{const k=perKey(y,i+1);const p=planOf(k)||{};const f2=v=>v?(+v).toFixed(2):"";return `<tr class="${k===curPeriod()?"cur":""}"><td>${n}</td>
@@ -493,6 +510,10 @@ function openEditor(mv,preset={}){
     <div class="two"><div class="field"><label>Data</label><input type="date" id="fData" value="${editing.data||""}"></div>
       <div class="field"><label>Tipo</label><div class="seg full" id="tipoSeg"><button type="button" data-t="Fixa">Fixa</button><button type="button" data-t="Variável">Variável</button></div><input type="hidden" id="fTipo" value="${editing.tipo==="Fixa"?"Fixa":"Variável"}"></div></div>
     <div class="field"><label>Categoria</label><div class="catchips" id="catChips">${DB.config.categorias.map(c=>`<button type="button" data-c="${esc(c.nome)}">${catIcon(c.nome)} ${esc(c.nome)}</button>`).join("")}</div><input type="hidden" id="fCat" value="${esc(editing.cat||"")}"></div>
+    ${isNew?`<div class="prestwrap"><label class="toggle"><input type="checkbox" id="fPrest"> 💳 Pagar em prestações</label>
+      <div id="prestBox" style="display:none;margin-top:10px"><div class="field"><label>Número de prestações</label><div class="seg full" id="prestN">${[2,3,4,6,12].map(n=>`<button type="button" data-n="${n}" class="${n===3?"on":""}">${n}x</button>`).join("")}</div></div>
+      <div class="muted" id="prestInfo" style="font-size:12.5px;margin-top:8px"></div></div></div>`:(editing.prest?`<div class="prestwrap"><b>💳 Prestação ${editing.prest.n}/${editing.prest.total}</b> <span class="muted">de “${esc(editing.prest.nome)}” (${eur(editing.prest.compra)})</span>
+      <div style="margin-top:8px"><button type="button" class="btn small danger" data-act="delprest">Apagar todas as prestações desta compra</button></div></div>`:"")}
     <label class="toggle"><input type="checkbox" id="fPaus" ${editing.pausado?"checked":""}> Pausado (não conta nos gastos)</label>
     <details ${editing.ajuste||editing.nota?"open":""}><summary>Mais opções</summary><div style="display:grid;gap:12px;margin-top:10px">
       <div class="field"><label>Contar noutro mês (opcional)</label><div class="two"><select id="fAjM"><option value="">Automático (pela data)</option>${MESES.map((n,i)=>`<option value="${i+1}" ${editing.ajuste&&perParts(editing.ajuste)[1]===i+1?"selected":""}>${n}</option>`).join("")}</select>
@@ -507,6 +528,14 @@ function openEditor(mv,preset={}){
     if(am)k=perKey(+$("#fAjY").value,+am);else if(d)k=periodOfDate(parseISO(d));
     $("#fInfo").textContent=k?`Conta para ${MESES[perParts(k)[1]-1]} de ${perParts(k)[0]}.`:"Sem data: escolhe o mês em “Mais opções”."};
   ["fData","fAjM","fAjY"].forEach(id=>$("#"+id).addEventListener("change",info));info();
+  if(isNew){const pinfo=()=>{const on=$("#fPrest").checked;$("#prestBox").style.display=on?"":"none";if(!on)return;
+      const n=+$("#prestN .on").dataset.n,v=parseFloat($("#fVal").value)||0,d=$("#fData").value;
+      const parts=splitAmount(v,n);let txt=v?`O valor acima é o <b>total da compra</b>: ${n} prestações de <b>${eur(parts[0])}</b>${parts[n-1]!==parts[0]?` (a última de ${eur(parts[n-1])})`:""}.`:"Escreve em cima o valor total da compra.";
+      if(d){const last=addMonthsDate(d,n-1);txt+=` Da 1.ª a ${fmtD(d)} até à última a ${fmtD(last)}.`}else txt+=" Escolhe a data da 1.ª prestação.";
+      $("#prestInfo").innerHTML=txt};
+    $("#fPrest").addEventListener("change",()=>{if($("#fPrest").checked&&$("#kind .on").dataset.k==="r"){$("#fPrest").checked=false;toast("As prestações são só para gastos");return}pinfo()});
+    $("#prestN").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#prestN").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));pinfo()});
+    ["fVal","fData"].forEach(id=>$("#"+id).addEventListener("input",pinfo));}
   const sync=()=>{$("#tipoSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===$("#fTipo").value));
     $("#catChips").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.c===$("#fCat").value))};sync();
   $("#tipoSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(b){$("#fTipo").value=b.dataset.t;sync()}});
@@ -527,8 +556,24 @@ function saveEditor(){
   if(!m.data&&!m.ajuste){toast("Indica a data ou o mês");return}
   // se o mês automático for igual ao ajuste, limpa o ajuste
   if(m.ajuste&&m.data&&periodOfDate(parseISO(m.data))===m.ajuste)m.ajuste=null;
+  const pr=$("#fPrest");
+  if(pr&&pr.checked){
+    if(!m.data){toast("Indica a data da 1.ª prestação");return}
+    if(!(m.valor>0)){toast("Indica o valor total da compra");return}
+    const n=+$("#prestN .on").dataset.n,parts=splitAmount(m.valor,n),grupo=uid();
+    for(let k=0;k<n;k++){const d=addMonthsDate(m.data,k);
+      DB.movimentos.push({...m,id:uid(),valor:parts[k],data:d,ajuste:null,prest:{grupo,n:k+1,total:n,nome:desc,compra:m.valor}})}
+    closeModal();changed();toast(`${n} prestações criadas ✔`);return}
   const i=DB.movimentos.findIndex(x=>x.id===m.id);if(i>=0)DB.movimentos[i]=m;else DB.movimentos.push(m);
   closeModal();changed();toast("Guardado ✔")}
+function splitAmount(v,n){const c=Math.round(v*100),base=Math.floor(c/n),out=Array(n).fill(base);out[n-1]=c-base*(n-1);return out.map(x=>x/100)}
+function addMonthsDate(isoD,k){const d=parseISO(isoD);const t=new Date(d.getFullYear(),d.getMonth()+k,1);const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(d.getDate(),last));return iso(t)}
+function prestGroups(){const g={};for(const m of DB.movimentos){if(!m.prest)continue;(g[m.prest.grupo]=g[m.prest.grupo]||[]).push(m)}
+  return Object.values(g).map(items=>{items.sort((a,b)=>a.prest.n-b.prest.n);const p=items[0].prest;
+    const pago=items.filter(x=>status(x).k==="pago").reduce((s,x)=>s+gasto(x),0),total=items.reduce((s,x)=>s+gasto(x),0);
+    const prox=items.find(x=>status(x).k==="pend");
+    return{grupo:p.grupo,nome:p.nome,compra:p.compra,total,pago,falta:Math.max(0,total-pago),n:items.length,feitas:items.filter(x=>status(x).k==="pago").length,
+      fim:items[items.length-1].data,prox,cat:items[0].cat,items}}).sort((a,b)=>(a.prox?.data||"9999").localeCompare(b.prox?.data||"9999"))}
 
 /* ================= Ações ================= */
 function copyFixas(){
@@ -536,7 +581,7 @@ function copyFixas(){
   const existing=new Set(movsOf(k).filter(m=>m.tipo==="Fixa").map(m=>m.desc));let n=0;
   for(const m of src){if(existing.has(m.desc))continue;
     let data=null;if(m.data){const d=parseISO(m.data);const nd=new Date(d.getFullYear(),d.getMonth()+1,1);nd.setDate(Math.min(d.getDate(),new Date(nd.getFullYear(),nd.getMonth()+1,0).getDate()));data=iso(nd)}
-    DB.movimentos.push({...m,id:uid(),data,ajuste:m.ajuste?addMonths(m.ajuste,1):null});n++}
+    const nm={...m,id:uid(),data,ajuste:m.ajuste?addMonths(m.ajuste,1):null};delete nm.prest;DB.movimentos.push(nm);n++}
   if(n){changed();toast(`${n} despesas fixas copiadas`)}else toast("Não há fixas novas para copiar")}
 function bindView(){
   const on=(sel,ev,fn)=>{const e=$(sel);if(e)e.addEventListener(ev,fn)};
@@ -567,11 +612,13 @@ document.addEventListener("click",async e=>{
     case"close":closeModal();break;
     case"savemv":saveEditor();break;
     case"newgoal":openGoal(null);break;
+    case"delprest":{if(t.dataset.confirm){const g=editing.prest.grupo;const n=DB.movimentos.filter(x=>x.prest&&x.prest.grupo===g).length;DB.movimentos=DB.movimentos.filter(x=>!(x.prest&&x.prest.grupo===g));closeModal();changed();toast(`${n} prestações apagadas`)}else{t.dataset.confirm="1";t.textContent="Confirmar: apagar todas"}break}
+    case"goprest":UI.ano=perParts(curPeriod())[0];setView("plano");setTimeout(()=>{const el=$("#prestPanel");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50);break;
     case"savegoal":saveGoal();break;
     case"delgoal":{const n=editing.orig;if(DB.poupancas.some(p=>p.destino===n)){toast("Há poupanças registadas neste objetivo: remove-as primeiro no Plano");break}
       if(t.dataset.confirm){DB.config.destinos=DB.config.destinos.filter(d=>d!==n);delete DB.config.metas[n];closeModal();changed();toast("Objetivo apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break}
     case"del":if(t.dataset.confirm){DB.movimentos=DB.movimentos.filter(m=>m.id!==editing.id);closeModal();changed();toast("Apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break;
-    case"dup":{const c={...editing,id:uid()};closeModal();openEditor(null,{...c,id:uid()});break}
+    case"dup":{const c={...editing,id:uid()};delete c.prest;closeModal();openEditor(null,{...c,id:uid()});break}
     case"prev":UI.per=addMonths(UI.per,-1);render();break;
     case"next":UI.per=addMonths(UI.per,1);render();break;
     case"hoje":UI.per=curPeriod();render();break;
