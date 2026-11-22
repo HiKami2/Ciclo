@@ -224,7 +224,7 @@ function renderSaveState(){
   else if(syncState==="offline")h=`<span class="dot" style="background:var(--amber)"></span><b>Sem internet</b><br>Guardado no dispositivo; sincroniza depois`;
   else if(syncState==="error"||syncState==="locked")h=`<span class="dot" style="background:var(--red)"></span><b>Por sincronizar</b><br>${esc(syncErr)}`;
   else h=`<span class="dot" style="background:var(--green)"></span><b>${pending?"Por sincronizar…":"Sincronizado"}</b><br>${lastSync?"às "+hm(lastSync):""} · 🔒 encriptado`;
-  e.innerHTML=h;const m=$("#syncMini");if(m)m.innerHTML=h.split("<br>")[0].replace(/<\/?b>/g,"")}
+  e.innerHTML=h;const m=$("#syncMini");if(m){const t=h.split("<br>")[0];m.innerHTML=t.replace(/<b>/,"<span class=\"sm-txt\">").replace(/<\/b>/,"</span>");m.title=t.replace(/<[^>]+>/g,"")}}
 
 function yearsAvail(){const ys=new Set([new Date().getFullYear()]);
   DB.movimentos.forEach(m=>{const p=periodOf(m);if(p)ys.add(perParts(p)[0])});DB.plano.forEach(p=>ys.add(perParts(p.per)[0]));
@@ -233,6 +233,7 @@ const CAT_ICON={"Subscrições":"📺","Carro":"🚗","Combustível":"⛽","Casa
 const CAT_HUE={"Subscrições":265,"Carro":215,"Combustível":30,"Casa":160,"Restauração":12,"Compras":330,"Viagens":195,"Lazer":285,"Prendas":350,"Apostas":45,"Família e amigos":140,"Saúde e desporto":100,"Banco e taxas":225,"Dia a dia":25,"Entradas":145,"Ajustes":0,"Outros":40};
 const catIcon=c=>CAT_ICON[c]||"🏷️";
 function avatar(c){const h=CAT_HUE[c];return `<div class="av" ${h!=null?`style="background:hsl(${h} 80% 50% / .13)"`:""}>${catIcon(c)}</div>`}
+function avatarMini(c){return `<span class="avm">${catIcon(c)}</span>`}
 function rowHTML(x,meta){return `<div class="row ${x.pausado?"paus":""}" data-edit="${x.id}">${avatar(x.cat)}
   <div class="txt"><div class="d">${esc(x.desc)}</div><div class="m">${meta}</div></div>
   <div class="rt"><div class="v ${x.valor<0?"in":""}">${x.valor==null?"—":(x.valor<0?"+ "+eur(-x.valor):eur(x.valor))}</div>${chip(x)}</div></div>`}
@@ -318,7 +319,7 @@ function vAnual(){
   <div class="grid2">
     <div class="panel" style="overflow:auto"><h2>Por categoria</h2><table>
       <tr><th>Categoria</th><th>Gasto</th><th>Média/mês</th><th class="lg-cell">Orçamento</th><th class="lg-cell" style="width:30%">Peso</th></tr>
-      ${catArr.map(([n,v])=>{const md=v.g/nMeses,o=orc(n);return `<tr><td>${esc(n)}${v.r?` <span class="muted">(+${eur(v.r)})</span>`:""}</td><td>${eur(v.g)}</td><td class="${o&&md>o?"neg":""}">${eur(md)}</td><td class="lg-cell">${o?eur(o):"–"}</td><td class="lg-cell"><div class="catbar"><i style="width:${gT?(v.g/gT*100).toFixed(1):0}%"></i></div></td></tr>`}).join("")||`<tr><td colspan="5" class="muted">Sem dados</td></tr>`}
+      ${catArr.map(([n,v])=>{const md=v.g/nMeses,o=orc(n);return `<tr><td class="wrap">${avatarMini(n)}${esc(n)}${v.r?`<div class="muted" style="font-size:11.5px">recebido +${eur(v.r)}</div>`:""}</td><td>${eur(v.g)}</td><td class="${o&&md>o?"neg":""}">${eur(md)}</td><td class="lg-cell">${o?eur(o):"–"}</td><td class="lg-cell"><div class="catbar"><i style="width:${gT?(v.g/gT*100).toFixed(1):0}%"></i></div></td></tr>`}).join("")||`<tr><td colspan="5" class="muted">Sem dados</td></tr>`}
     </table></div>
     <div class="panel" style="overflow:auto"><h2>Poupança por destino</h2><table>
       <tr><th>Destino</th><th>No ano</th><th>Acumulado</th><th class="lg-cell">Objetivo</th></tr>
@@ -371,6 +372,7 @@ function goalInfo(d){
   const meses=[...new Set(all.filter(p=>p.per<=cur).map(p=>p.per))].sort().slice(-6);
   r.media=meses.length?all.filter(p=>meses.includes(p.per)).reduce((s,p)=>s+(+p.valor||0),0)/meses.length:0;
   return r}
+const TRASH='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 const fmtPer=k=>{const [y,m]=perParts(k);return `${MESES[m-1]} ${y}`};
 function goalCard(i){
   const r=goalInfo(i);const chipTxt={ok:["pago","Objetivo atingido 🎉"],plan:["pago","No bom caminho"],short:["pend","Falta planear"],late:["sem","Prazo ultrapassado"],open:["paus","Sem data final"]}[r.estado];
@@ -437,14 +439,14 @@ function vPlano(){
       <td class="lg-cell" style="text-align:left"><input class="wide" type="text" data-plan="${k}" data-f="notas" value="${esc(p.notas||"")}"></td></tr>`}).join("")}
   </table></div>
   <div class="panel inline-table" style="overflow:auto"><h2>Poupança do ano <span class="tot">${eur(DB.poupancas.filter(p=>perParts(p.per)[0]===y).reduce((s,p)=>s+(+p.valor||0),0))}</span></h2><table>
-    <tr><th>Mês</th><th style="text-align:left">Destino</th><th>Valor</th><th></th></tr>
-    ${DB.poupancas.filter(p=>perParts(p.per)[0]===y).sort((a,b)=>a.per.localeCompare(b.per)).map(p=>`<tr><td>${MESES[perParts(p.per)[1]-1]}</td><td style="text-align:left">${esc(p.destino)}</td><td>${eur(p.valor)}</td><td><button class="btn small danger" data-delpoup="${p.id}">Remover</button></td></tr>`).join("")||`<tr><td colspan="4" class="muted">Sem poupanças neste ano.</td></tr>`}
+    <tr><th>Mês</th><th style="text-align:left">Destino</th><th>Valor</th><th class="act"></th></tr>
+    ${DB.poupancas.filter(p=>perParts(p.per)[0]===y).sort((a,b)=>a.per.localeCompare(b.per)).map(p=>`<tr><td><span class="lg-only">${MESES[perParts(p.per)[1]-1]}</span><span class="sm-only">${MES3[perParts(p.per)[1]-1]}</span></td><td class="wrap" style="text-align:left">${esc(p.destino)}</td><td>${eur(p.valor)}</td><td class="act"><button class="delbtn" title="Remover" aria-label="Remover" data-delpoup="${p.id}">${TRASH}</button></td></tr>`).join("")||`<tr><td colspan="4" class="muted">Sem poupanças neste ano.</td></tr>`}
   </table>
   <div class="foot" style="flex-wrap:wrap;align-items:center">
     <select id="npMes">${MESES.map((n,i)=>`<option value="${i+1}">${n}</option>`).join("")}</select>
     <select id="npDest">${DB.config.destinos.map(d=>`<option>${esc(d)}</option>`).join("")}</select>
-    <input type="number" step="0.01" id="npVal" placeholder="Valor" style="width:110px">
-    <button class="btn small primary" data-act="addpoup">+ Adicionar poupança</button></div></div>`}
+    <input type="number" inputmode="decimal" step="0.01" id="npVal" placeholder="Valor (€)">
+    <button class="btn small primary" data-act="addpoup">+ Adicionar</button></div></div>`}
 
 /* ---------- Definições ---------- */
 function vDefinicoes(){
@@ -465,8 +467,8 @@ function vDefinicoes(){
     <div class="field"><label>Feriados (um por linha, AAAA-MM-DD)</label><textarea id="cfgFer" rows="5">${DB.config.feriados.join("\n")}</textarea></div>
     <div><button class="btn small primary" data-act="savecfg">Guardar</button></div></div></div>
   <div class="panel inline-table"><h2>🏷️ Categorias e orçamento mensal</h2><table>
-    <tr><th>Categoria</th><th>Orçamento/mês</th><th></th></tr>
-    ${DB.config.categorias.map((c,i)=>`<tr><td>${esc(c.nome)}</td><td><input type="number" step="0.01" data-orc="${i}" value="${c.orcamento??""}" placeholder="–"></td><td><button class="btn small danger" data-delcat="${i}">Remover</button></td></tr>`).join("")}
+    <tr><th>Categoria</th><th>Orçamento/mês</th><th class="act"></th></tr>
+    ${DB.config.categorias.map((c,i)=>`<tr><td>${esc(c.nome)}</td><td><input type="number" step="0.01" data-orc="${i}" value="${c.orcamento??""}" placeholder="–"></td><td class="act"><button class="delbtn" title="Remover" aria-label="Remover" data-delcat="${i}">${TRASH}</button></td></tr>`).join("")}
   </table><div class="foot"><input type="text" id="newCat" placeholder="Nova categoria"><button class="btn small" data-act="addcat">+ Adicionar</button></div></div>
   <div class="panel"><h2>🐷 Destinos de poupança</h2><div class="body"><div class="muted" style="font-size:12.5px">Para definir valor e prazo de cada um, usa <b>Plano → Objetivos de poupança</b>.</div>
     <div>${DB.config.destinos.map((d,i)=>`<span class="chip paus" style="margin:0 6px 6px 0;display:inline-block">${esc(d)} <a href="#" data-deldest="${i}" style="color:inherit">✕</a></span>`).join("")}</div>

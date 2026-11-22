@@ -184,10 +184,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
 @media (max-width:900px){
   /* estrutura de app: só o conteúdo faz scroll; a barra de baixo nunca se mexe */
   html,body{height:100%;overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%}
-  .app{display:flex;flex-direction:column;height:100%;height:100dvh;min-height:0}
+  .app{display:flex;flex-direction:column;height:100%;min-height:0}
   main{order:1;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
   nav.side{order:2;position:relative !important;flex:none}
-  nav.side{left:auto;right:auto;bottom:auto;top:auto;height:auto;width:100%;flex-direction:row;z-index:40;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  nav.side{left:auto;right:auto;bottom:auto;top:auto;height:auto;width:100%;flex-direction:row;z-index:40;padding:5px 6px max(5px, calc(env(safe-area-inset-bottom) - 10px));
     border-right:0;border-top:1px solid var(--line);justify-content:space-around;gap:2px;
     background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px)}
   nav.side .brand,nav.side .grow,.save-state{display:none}
@@ -274,3 +274,23 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
 .gbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
 .gbar i.plan{background:var(--accent);opacity:.25}
 @media (max-width:700px){.goals{grid-template-columns:minmax(0,1fr);padding:4px 12px 14px}}
+
+/* botões de apagar e células compactas */
+.delbtn{all:unset;box-sizing:border-box;cursor:pointer;width:34px;height:34px;border-radius:10px;display:inline-grid;place-items:center;color:var(--red);background:var(--red-soft);transition:filter .15s}
+.delbtn:hover{filter:brightness(.95)}
+td.act,th.act{width:1%;padding-left:4px;text-align:right}
+td.wrap{white-space:normal;overflow-wrap:anywhere}
+.panel .foot .btn.primary{white-space:nowrap}
+@media (max-width:700px){
+  .panel .foot select,.panel .foot input{flex:1 1 40%;min-width:0}
+  .panel .foot .btn.primary{flex:1 1 40%}
+  .inline-table td,.inline-table th{padding-left:6px;padding-right:6px}
+  .inline-table td:first-child,.inline-table th:first-child{padding-left:14px}
+  .inline-table td:last-child,.inline-table th:last-child{padding-right:12px}
+  .inline-table input{width:100%;min-width:72px;max-width:120px}
+  .syncmini{max-width:none;padding:6px 9px}
+}
+@media (max-width:430px){.syncmini .sm-txt{display:none}.syncmini .dot{margin:0}}
+
+.avm{display:inline-block;width:1.4em;text-align:center;margin-right:6px}
+@media (max-width:700px){td.wrap{min-width:110px}}
