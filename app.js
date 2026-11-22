@@ -74,7 +74,7 @@ async function ghWrite(text,sha){
   if(!r.ok)throw new Error("http"+r.status);
   const j=await r.json();return{sha:j.content.sha}}
 function errMsg(e){const m=String(e&&e.message||e);
-  return m==="token"?"O token do GitHub é inválido ou expirou.":m==="repo"?"Repositório não encontrado (ou o token não tem acesso a ele).":m==="permissao"?"O token não tem permissão de escrita no repositório.":m==="pass"?"Palavra-passe errada.":
+  return m==="token"?"O token do GitHub é inválido ou expirou.":m==="repo"?"Repositório não encontrado (ou o token não tem acesso a ele).":m==="permissao"?"O token não tem permissão de escrita. No GitHub, edita o token e põe Contents em “Read and write”.":m==="pass"?"Palavra-passe errada.":
     (!navigator.onLine||m.includes("Failed to fetch")||m.includes("NetworkError"))?"Sem ligação à internet.":"Erro: "+m}
 
 /* --- registo de alterações por item (para juntar dados de vários dispositivos) --- */
