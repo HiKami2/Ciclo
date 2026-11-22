@@ -11,13 +11,21 @@
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",Inter,Roboto,Arial,sans-serif;
   color-scheme:light dark;
 }
-@media (prefers-color-scheme:dark){:root{
+:root[data-theme=dark]{
   --bg:#0f0f10;--panel:#1a1a1c;--ink:#f3f1ee;--muted:#9c978f;--line:#28272a;--soft:#222224;--soft2:#2b2a2d;
   --accent:#f2763d;--accent2:#e0541c;--accent-soft:#3a2216;
   --red:#ff8a7a;--red-soft:#3b1d1a;--green:#4ade80;--green-soft:#15301f;--amber:#fbbf24;--amber-soft:#382c12;
   --blue:#8fb0ff;--blue-soft:#1a2440;--grey-soft:#262628;
   --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.35);--shadow-lg:0 24px 60px rgba(0,0,0,.6);
-}}
+;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0f0f10;--panel:#1a1a1c;--ink:#f3f1ee;--muted:#9c978f;--line:#28272a;--soft:#222224;--soft2:#2b2a2d;
+  --accent:#f2763d;--accent2:#e0541c;--accent-soft:#3a2216;
+  --red:#ff8a7a;--red-soft:#3b1d1a;--green:#4ade80;--green-soft:#15301f;--amber:#fbbf24;--amber-soft:#382c12;
+  --blue:#8fb0ff;--blue-soft:#1a2440;--grey-soft:#262628;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.35);--shadow-lg:0 24px 60px rgba(0,0,0,.6);
+;color-scheme:dark}}
+:root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.4}
@@ -241,3 +249,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:6
 }
 @keyframes sheet{from{transform:translateY(60px);opacity:.5}to{transform:none;opacity:1}}
 @media (max-width:360px){.cards{grid-template-columns:1fr}}
+
+.themebtn{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--soft);color:var(--ink);flex:none}
+.themebtn:hover{background:var(--soft2)}
+.themebtn svg{width:19px;height:19px}
+.themebtn .moon{display:none}
+:root[data-theme=dark] .themebtn .sun{display:none}:root[data-theme=dark] .themebtn .moon{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .themebtn .sun{display:none}:root:not([data-theme=light]) .themebtn .moon{display:block}}
+@media (max-width:700px){.themebtn{width:38px;height:38px;border-radius:99px}}

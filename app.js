@@ -383,6 +383,9 @@ function vDefinicoes(){
   <div class="panel"><h2>🔒 Os teus dados</h2><div class="body">${fs}
     <div class="toolbar" style="margin:0"><button class="btn small" data-act="exportcsv">Exportar para Excel (CSV)</button><button class="btn small" data-act="exportjson">Exportar cópia de segurança</button><button class="btn small" data-act="importjson">Importar cópia…</button></div>
     <div class="muted" style="font-size:12px">Os dados são encriptados neste dispositivo antes de saírem. No GitHub só fica um ficheiro ilegível sem a tua palavra-passe. A cópia de segurança exportada não é encriptada: guarda-a em local seguro.</div></div></div>
+  <div class="panel"><h2>🎨 Aspeto</h2><div class="body">
+    <div class="seg full" id="themeSeg">${[["auto","Automático"],["light","☀️ Claro"],["dark","🌙 Escuro"]].map(([k,n])=>`<button type="button" data-theme-set="${k}" class="${getTheme()===k?"on":""}">${n}</button>`).join("")}</div>
+    <div class="muted" style="font-size:12px">"Automático" segue o modo do sistema (claro de dia, escuro à noite, conforme o telemóvel ou o PC). A escolha fica guardada neste dispositivo.</div></div></div>
   <div class="panel"><h2>📅 Mês e ordenado</h2><div class="body">
     <div class="field" style="max-width:260px"><label>Dia do ordenado</label><input type="number" min="1" max="31" id="cfgDia" value="${DB.config.diaOrdenado}"></div>
     <div class="muted" style="font-size:12px">Se calhar ao fim de semana ou feriado, conta o dia útil seguinte. O mês vai desse dia até à véspera do ordenado seguinte.</div>
@@ -474,6 +477,7 @@ function bindView(){
   document.querySelectorAll("[data-orc]").forEach(inp=>inp.addEventListener("change",e=>{DB.config.categorias[+e.target.dataset.orc].orcamento=e.target.value===""?null:+e.target.value;changed()}));
 }
 document.addEventListener("click",async e=>{
+  const th=e.target.closest("[data-theme-set]");if(th){setTheme(th.dataset.themeSet);return}
   const t=e.target.closest("[data-act],[data-edit],[data-gomes],[data-delpoup],[data-delcat],[data-deldest],nav.side button");if(!t)return;
   if(t.matches("nav.side button")){setView(t.dataset.view);return}
   if(t.dataset.edit){openEditor(DB.movimentos.find(m=>m.id===t.dataset.edit));return}
@@ -567,6 +571,16 @@ async function doSyncSetup(btn){
   btn.style.pointerEvents="";
   if(err){$("#sInfo").textContent="❌ "+err;btn.textContent=pr.exists?"Ligar":"Criar e ligar";return}
   closeModal();render();toast("Sincronização ativa ✔")}
+
+/* ================= Tema ================= */
+function getTheme(){try{return localStorage.getItem("eciclo.tema")||"auto"}catch(e){return"auto"}}
+function isDark(){const t=getTheme();return t==="dark"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches)}
+function setTheme(t){try{t==="auto"?localStorage.removeItem("eciclo.tema"):localStorage.setItem("eciclo.tema",t)}catch(e){}
+  t==="auto"?document.documentElement.removeAttribute("data-theme"):document.documentElement.setAttribute("data-theme",t);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",isDark()?"#0f0f10":"#f4f3f0"));
+  if(UI.view==="definicoes")render()}
+$("#themeBtn").addEventListener("click",()=>{setTheme(isDark()?"light":"dark");toast(isDark()?"Modo escuro":"Modo claro")});
+setTimeout(()=>setTheme(getTheme()),0);
 
 /* ================= Arranque ================= */
 (async function init(){
