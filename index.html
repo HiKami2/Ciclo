@@ -17,7 +17,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 </head>
 <body>
 <div class="app">
@@ -31,13 +31,12 @@
     <div class="grow"></div>
     <div class="save-state" id="saveState"></div>
   </nav>
-  <main><div class="appbar"><img src="icons/icon-192.png" alt=""><b>€iclo</b><div class="syncmini" id="syncMini"></div></div><div id="main"></div></main>
+  <main><div class="appbar"><img src="icons/icon-192.png" alt=""><b>€iclo</b><div class="syncmini" id="syncMini"></div><button class="addbtn" id="fab" title="Adicionar movimento (tecla N)"><span class="lg-only">Adicionar movimento</span><span class="sm-only">Adicionar</span></button></div><div id="main"></div></main>
 </div>
-<button class="fab" id="fab" title="Nova despesa (N)">+</button>
 <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="importInput" accept=".json,application/json" hidden>
-<script src="config.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
