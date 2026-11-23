@@ -113,7 +113,7 @@ let syncing=false;
 async function syncNow(){
   if(!SYNC||!KEY){syncState=SYNC?"locked":"off";renderSaveState();return}
   if(syncing){pending=true;return}
-  syncing=true;syncState="syncing";renderSaveState();
+  syncing=true;syncState="syncing";renderSaveState();const antes=JSON.stringify(DB);
   try{
     for(let tent=0;tent<3;tent++){
       const rem=await ghRead();let merged=DB,sha=null;
@@ -126,7 +126,7 @@ async function syncNow(){
       DB=merged;remoteSha=w.sha;break}
     SNAP=snapOf(DB);lsSet();refreshFer();lastSync=new Date();syncState="idle";syncErr="";
   }catch(e){syncErr=errMsg(e);syncState=(!navigator.onLine||syncErr.startsWith("Sem ligação"))?"offline":"error";if(String(e.message)==="pass")syncState="locked"}
-  finally{syncing=false;renderSaveState();if(!$("#modalBg").classList.contains("open"))render();if(pending&&syncState==="idle")scheduleSync(300)}
+  finally{syncing=false;renderSaveState();if(!$("#modalBg").classList.contains("open")&&JSON.stringify(DB)!==antes)render();if(pending&&syncState==="idle")scheduleSync(300)}
 }
 async function connectSync(repo,token,pass,pass2){
   const prev=SYNC;SYNC={repo:repo.trim(),path:CFG.dataPath||"dados.enc.json",token:token.trim()};
@@ -217,7 +217,7 @@ function curPeriod(){return periodOfDate(today0())}
 
 /* ================= Estado da interface ================= */
 const UI={view:"mensal",per:null,ano:null,filtro:{q:"",anos:[],meses:[],tipo:"",cats:[],sit:[],dir:"",min:"",max:"",prest:false,ord:"data"}};
-function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0);const mm=document.querySelector("main");if(mm)mm.scrollTop=0}
+function setView(v){UI.view=v;UI.movLim=60;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0);const mm=document.querySelector("main");if(mm)mm.scrollTop=0}
 
 /* ================= Render ================= */
 function render(){SUMC=new Map();if(UI.view==="transf"&&window.innerWidth<=900)UI.view="mensal";
@@ -433,6 +433,8 @@ function vMovimentos(){
   const ord=f.ord||"data";
   arr.sort(ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
   const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);const act=filtroAtivo(f);
+  const small=window.innerWidth<=700,lim=UI.movLim||(UI.movLim=60),vis=arr.slice(0,lim);
+  const more=arr.length>lim?`<div class="empty"><button class="btn small" data-act="movmore">Mostrar mais (${Math.min(arr.length-lim,120)} de ${arr.length-lim})</button></div>`:"";
   return `<h1>Movimentos</h1><div class="sub">Todos os registos. Valor negativo = dinheiro recebido.</div>
   <div class="toolbar">
     <input type="search" id="fq" placeholder="Pesquisar descrição, categoria ou nota…" value="${esc(f.q)}" style="flex:1;min-width:200px">
@@ -442,11 +444,11 @@ function vMovimentos(){
   </div>
   ${act.length?`<div class="fchips">${act.map(([k,v,t])=>`<button class="fchip" data-rmf="${k}" data-rmv="${esc(String(v))}">${esc(t)} <span>✕</span></button>`).join("")}<button class="fchip clear" data-act="clearfilt">Limpar tudo</button></div>`:""}
   <div class="msum"><span><b>${arr.length}</b> registos</span><span>Gasto <b>${eur(tg)}</b></span><span>Recebido <b style="color:var(--green)">${eur(tr)}</b></span><span>Saldo <b>${eur(tr-tg)}</b></span></div>
-  <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
-  <div class="panel lg-block" style="overflow:auto"><table>
+  ${small?`<div class="panel"><div class="list">${vis.map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div>${more}</div>`:`
+  <div class="panel" style="overflow:auto"><table>
     <tr><th>Data</th><th style="text-align:left">Descrição</th><th style="text-align:left">Categoria</th><th style="text-align:left">Tipo</th><th style="text-align:left">Mês</th><th>Situação</th><th>Valor</th></tr>
-    ${arr.slice(0,600).map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
-  </table>${arr.length>600?`<div class="empty">A mostrar 600 de ${arr.length}. Usa os filtros.</div>`:""}${!arr.length?`<div class="empty">Nada encontrado.</div>`:""}</div>`}
+    ${vis.map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
+  </table>${more}${!arr.length?`<div class="empty">Nada encontrado.</div>`:""}</div>`}`}
 
 /* ---------- Plano ---------- */
 /* ---------- Objetivos de poupança ---------- */
@@ -821,8 +823,9 @@ function bindView(){
   on("#segMes","click",e=>{const b=e.target.closest("button");if(b){UI.per=perKey(perParts(UI.per)[0],+b.dataset.m);render()}});
   {const sm=$("#segMes .on");if(sm&&sm.scrollIntoView&&window.innerWidth<700)sm.parentElement.scrollLeft=sm.offsetLeft-sm.parentElement.clientWidth/2+sm.clientWidth/2}
   on("#selAnoA","change",e=>{UI.ano=+e.target.value;render()});
-  const ff=(id,key)=>on(id,id==="#fq"?"input":"change",e=>{UI.filtro[key]=e.target.value;const pos=e.target.selectionStart;render();if(id==="#fq"){const q=$("#fq");q.focus();q.setSelectionRange(pos,pos)}});
+  const ff=(id,key)=>on(id,id==="#fq"?"input":"change",e=>{UI.filtro[key]=e.target.value;UI.movLim=60;const pos=e.target.selectionStart;render();if(id==="#fq"){const q=$("#fq");q.focus();q.setSelectionRange(pos,pos)}});
   ff("#fq","q");ff("#ford","ord");
+  if(!window.__rsz){window.__rsz=1;let wasSmall=window.innerWidth<=700,tm;window.addEventListener("resize",()=>{clearTimeout(tm);tm=setTimeout(()=>{const sm=window.innerWidth<=700;if(sm!==wasSmall){wasSmall=sm;if(!editing)render()}},150)})}
   on("#trAnoSel","change",e=>{UI.trf.ano=e.target.value==="todos"?"todos":+e.target.value;render()});
   on("#trDir","click",e=>{const b=e.target.closest("button");if(b){UI.trf.dir=b.dataset.d;render()}});
   on("#trQ","input",e=>{UI.trf.q=e.target.value;const pos=e.target.selectionStart;render();const q=$("#trQ");q.focus();q.setSelectionRange(pos,pos)});
@@ -862,6 +865,7 @@ document.addEventListener("click",async e=>{
     case"goprest":UI.ano=perParts(curPeriod())[0];setView("plano");setTimeout(()=>{const el=$("#prestPanel");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50);break;
     case"savegoal":saveGoal();break;
     case"gocontas":setView("contas");break;
+    case"movmore":{const y=(document.querySelector("main")||document.documentElement).scrollTop;UI.movLim+=120;render();const mm=document.querySelector("main");if(mm&&window.innerWidth<=900)mm.scrollTop=y;else window.scrollTo(0,window.scrollY);break}
     case"trfcat":{const k=t.dataset.k;let n=0;if(!DB.config.categorias.some(c=>c.nome==="Transferências"))DB.config.categorias.push({nome:"Transferências",orcamento:null});
       transfMovs().filter(x=>x.k===k&&!BAL_CATS.includes(x.m.cat)&&x.m.cat!=="Apostas").forEach(x=>{x.m.cat="Transferências";n++});changed();toast(`${n} ${n===1?"movimento passou":"movimentos passaram"} para Transferências`);break}
     case"editconta":openGoal(t.dataset.c);break;
@@ -978,5 +982,5 @@ setTimeout(()=>setTheme(getTheme()),0);
   if("serviceWorker" in navigator&&location.protocol==="https:"){
     const had=!!navigator.serviceWorker.controller;let reloaded=false;
     navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&!reloaded&&!editing){reloaded=true;location.reload()}});
-    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{})})}).catch(()=>{})}
 })();
