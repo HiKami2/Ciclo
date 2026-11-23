@@ -776,7 +776,7 @@ function openEditor(mv,preset={}){
   $("#kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#kind").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))});
   $("#mvForm").addEventListener("submit",e=>{e.preventDefault();saveEditor()});
   setTimeout(()=>(isNew?$("#fVal"):$("#fDesc")).focus(),30)}
-function closeModal(){$("#modal").classList.remove("wide");$("#modalBg").classList.remove("open");editing=null}
+function closeModal(){$("#modal").classList.remove("wide");$("#modalBg").classList.remove("open");editing=null;if(reloadPending){const m=reloadPending;reloadPending=null;setTimeout(()=>reloadApp(m),300)}}
 function saveEditor(){
   const desc=$("#fDesc").value.trim();if(!desc){$("#fDesc").focus();toast("Falta a descrição");return}
   const vs=$("#fVal").value;let v=vs===""?null:Math.abs(parseFloat(vs));
@@ -969,6 +969,22 @@ function setTheme(t){try{t==="auto"?localStorage.removeItem("eciclo.tema"):local
   t==="auto"?document.documentElement.removeAttribute("data-theme"):document.documentElement.setAttribute("data-theme",t);
   document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",isDark()?"#0f0f10":"#f4f3f0"));
   if(UI.view==="definicoes")render()}
+/* ---------- Atualizar ---------- */
+let SWREG=null,reloadPending=null,reloading=false;
+function reloadApp(msg){if(reloading)return;
+  if(editing||$("#modalBg").classList.contains("open")){reloadPending=msg;return} // espera que feches a janela aberta
+  reloading=true;const mm=document.querySelector("main");
+  try{sessionStorage.setItem("eciclo.ui",JSON.stringify({view:UI.view,per:UI.per,ano:UI.ano,filtro:UI.filtro,conta:UI.conta,trf:UI.trf,movLim:UI.movLim,y:mm&&window.innerWidth<=900?mm.scrollTop:window.scrollY,msg}))}catch(_){}
+  location.reload()}
+async function refreshApp(){const b=$("#refreshBtn");if(b.classList.contains("spin"))return;b.classList.add("spin");
+  try{
+    if(SWREG){await SWREG.update().catch(()=>{});
+      if(SWREG.installing||SWREG.waiting){toast("Versão nova encontrada: a atualizar…");return} // recarrega sozinha quando estiver pronta
+    }else if(location.protocol!=="https:"){reloadApp("Atualizado ✔");return}
+    if(SYNC&&KEY){await syncNow()}
+    render();toast(!(SYNC&&KEY)?"Atualizado ✔":syncState==="idle"?"Atualizado ✔ Dados sincronizados":syncState==="offline"?"Sem ligação: estás a ver os dados deste dispositivo":"Não foi possível sincronizar: "+syncErr)
+  }finally{setTimeout(()=>b.classList.remove("spin"),400)}}
+$("#refreshBtn").addEventListener("click",refreshApp);
 $("#themeBtn").addEventListener("click",()=>{setTheme(isDark()?"light":"dark");toast(isDark()?"Modo escuro":"Modo claro")});
 setTimeout(()=>setTheme(getTheme()),0);
 
@@ -978,10 +994,16 @@ setTimeout(()=>setTheme(getTheme()),0);
   SYNC=syncGet();if(SYNC){const k=await kvGet("key");if(k&&k.key){KEY=k;syncState="idle"}else syncState="locked"}
   UI.per=curPeriod();UI.ano=perParts(UI.per)[0];
   try{const v=localStorage.getItem(LS_KEY+".view");if(v)UI.view=v}catch(_){}
+  // depois de uma atualização, volta exatamente ao sítio onde estavas
+  try{const st=JSON.parse(sessionStorage.getItem("eciclo.ui")||"null");sessionStorage.removeItem("eciclo.ui");
+    if(st){for(const k of ["per","ano","filtro","conta","trf","movLim"])if(st[k]!=null)UI[k]=st[k];if(st.view)UI.view=st.view;
+      setTimeout(()=>{const mm=document.querySelector("main");if(mm&&window.innerWidth<=900)mm.scrollTop=st.y||0;else window.scrollTo(0,st.y||0);if(st.msg)toast(st.msg)},60)}}catch(_){}
   render();
   if(SYNC&&KEY)syncNow();
   if("serviceWorker" in navigator&&location.protocol==="https:"){
-    const had=!!navigator.serviceWorker.controller;let reloaded=false;
-    navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&!reloaded&&!editing){reloaded=true;location.reload()}});
-    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{})})}).catch(()=>{})}
+    const had=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had)reloadApp("Atualizada para a versão nova ✔")});
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{SWREG=r;r.update().catch(()=>{});
+      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{})});
+      setInterval(()=>{if(document.visibilityState==="visible")r.update().catch(()=>{})},5*60e3)}).catch(()=>{})}
 })();
