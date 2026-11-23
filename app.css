@@ -415,3 +415,6 @@ tr.cur .money span{color:var(--accent)}
   .mpick [data-act=hoje]{order:2}.mpick #segMes{order:3;flex-basis:100%}
   .mpick #segMes button{flex:none;padding:9px 14px}
 }
+.xlsheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:4px 0 6px}
+.xlsheets div{background:var(--soft);border-radius:12px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.xlsheets b{font-size:13.5px}.xlsheets span{font-size:12px;color:var(--muted)}

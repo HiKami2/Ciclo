@@ -316,7 +316,7 @@ function vAnual(){
   svg+="</svg>";
   const cls=v=>v<0?"neg":"";
   return `<h1>Controlo anual</h1><div class="sub">Visão do ano; clica num mês para ver o detalhe.</div>
-  <div class="toolbar"><button class="iconbtn" data-act="yprev">‹</button><select id="selAnoA">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select><button class="iconbtn" data-act="ynext">›</button></div>
+  <div class="toolbar"><button class="iconbtn" data-act="yprev">‹</button><select id="selAnoA">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select><button class="iconbtn" data-act="ynext">›</button><button class="btn small" data-act="exportxlsx" style="margin-left:auto">📊 Exportar Excel</button></div>
   <div class="cards">
     <div class="card"><div class="lbl">Rendimento</div><div class="val">${eur(T.rend)}</div></div>
     <div class="card"><div class="lbl">Fixas</div><div class="val">${eur(T.fixas)}</div></div>
@@ -529,7 +529,7 @@ function vDefinicoes(){
   return `<h1>Definições</h1><div class="sub">Dados, regras e listas.</div><div class="settings">
   <div class="panel"><h2>🔒 Os teus dados</h2><div class="body">${fs}
     <div class="toolbar" style="margin:0"><button class="btn small primary" data-act="impextrato">🏦 Importar extrato do banco (CSV)</button></div>
-    <div class="toolbar" style="margin:0"><button class="btn small" data-act="exportcsv">Exportar para Excel (CSV)</button><button class="btn small" data-act="exportjson">Exportar cópia de segurança</button><button class="btn small" data-act="importjson">Importar cópia…</button></div>
+    <div class="toolbar" style="margin:0"><button class="btn small" data-act="exportxlsx">📊 Exportar para Excel</button><button class="btn small" data-act="exportcsv">CSV simples</button><button class="btn small" data-act="exportjson">Exportar cópia de segurança</button><button class="btn small" data-act="importjson">Importar cópia…</button></div>
     <div class="muted" style="font-size:12px">Os dados são encriptados neste dispositivo antes de saírem. No GitHub só fica um ficheiro ilegível sem a tua palavra-passe. A cópia de segurança exportada não é encriptada: guarda-a em local seguro.</div></div></div>
   <div class="panel"><h2>🎨 Aspeto</h2><div class="body">
     <div class="seg full" id="themeSeg">${[["auto","Automático"],["light","☀️ Claro"],["dark","🌙 Escuro"]].map(([k,n])=>`<button type="button" data-theme-set="${k}" class="${getTheme()===k?"on":""}">${n}</button>`).join("")}</div>
