@@ -366,14 +366,15 @@ function passa(m,f){const p=periodOf(m);const [y,mm]=p?perParts(p):[null,null];
   if(f.q){const q=N0(f.q);if(!N0(m.desc).includes(q)&&!N0(m.cat).includes(q)&&!N0(m.nota).includes(q))return false}return true}
 const N0=s=>String(s||"").normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase();
 /* ---------- Transferências por pessoa (só PC) ---------- */
-const TRF_RE=/transfer[eê]ncia|transferencia|transferir|\btrf\b|mb ?way/i;
-function isTransf(m){return !!m.pessoa||TRF_RE.test(m.desc||"")||m.cat==="Transferências"||m.cat==="Família e amigos"}
-function pessoaAuto(m){if(!m)return"";let d=(m.desc||"").trim();if(!d)return"";
-  const parts=d.split(/\s+[-–—]\s+|\s*:\s*/).map(x=>x.trim()).filter(Boolean);
-  let p=parts.find(x=>!TRF_RE.test(x)&&!/^(de|para|a)$/i.test(x));
-  if(!p){p=d.replace(TRF_RE,"").replace(/^\s*(de|para|a)\b[:\s]*/i,"")}
-  p=p.replace(TRF_RE,"").replace(/\(.*?\)/g,"").replace(/^\s*(de|para|a)\b[:\s]*/i,"").replace(/[-–—:]+/g," ").replace(/\s+/g," ").trim();
-  if(!p)return"Sem nome";return p.charAt(0).toUpperCase()+p.slice(1)}
+const TFI_RE=/^\s*tfi\b[\s:.-]*/i;
+const rawOf=m=>{const n=String(m.nota||"");return n.startsWith("Extrato: ")?n.slice(9):""};
+// só contam as transferências do banco com o código TFI (na descrição ou no texto original do extrato)
+function isTransf(m){return !!m.pessoa||TFI_RE.test(m.desc||"")||TFI_RE.test(rawOf(m))}
+function pessoaAuto(m){if(!m)return"";
+  let p=TFI_RE.test(m.desc||"")?m.desc.replace(TFI_RE,""):TFI_RE.test(rawOf(m))?rawOf(m).replace(TFI_RE,""):(m.desc||"");
+  p=p.replace(/\s+/g," ").trim();if(!p)return"Sem nome";
+  if(p===p.toUpperCase())p=p.toLowerCase().replace(/(^|\s)(\p{L})/gu,(x,a,c)=>a+c.toUpperCase());
+  return p.charAt(0).toUpperCase()+p.slice(1)}
 const pKey=n=>N0(n).replace(/[^a-z0-9 ]/g,"").trim();
 function transfMovs(){const nomes={};const out=[];
   for(const m of DB.movimentos){if(typeof m.valor!=="number"||m.pausado||!isTransf(m))continue;
@@ -401,8 +402,8 @@ function vTransf(){
       <div class="cd-stats" style="padding:4px 18px 0"><div><span>Enviaste</span><b>${eur(sel.env)}</b></div><div><span>Recebeste</span><b style="color:var(--green)">${eur(sel.rec)}</b></div><div><span>Saldo</span><b class="${sel.rec-sel.env<0?"neg":""}">${sel.rec-sel.env>=0?"+ ":"− "}${eur(Math.abs(sel.rec-sel.env))}</b></div></div>
       ${mm?`<div class="trf-mes">${mm.map(x=>`<div title="${x.n}: enviado ${eur(x.e)} · recebido ${eur(x.r)}"><div class="bars"><i class="e" style="height:${(x.e/mx*100).toFixed(1)}%"></i><i class="r" style="height:${(x.r/mx*100).toFixed(1)}%"></i></div><span>${x.n}</span></div>`).join("")}</div>
         <div class="trf-leg"><span><i class="e"></i>Enviado</span><span><i class="r"></i>Recebido</span></div>`:""}
-      <div class="list">${its.map(m=>rowHTML(m,`${m.data?fmtD(m.data):"sem data"} · ${esc(m.cat||"Sem categoria")}`)).join("")}</div></div>`})():`<div class="panel"><div class="empty">Sem transferências com estes filtros.</div></div>`;
-  return `<h1>Transferências</h1><div class="sub">Por pessoa ou entidade: o que enviaste e o que recebeste. O nome vem da descrição; podes corrigi-lo no movimento (Mais opções → Pessoa).</div>
+      <div class="list">${its.map(m=>rowHTML(m,`${m.data?fmtD(m.data):"sem data"} · ${esc(m.cat||"Sem categoria")}`)).join("")}</div></div>`})():`<div class="panel"><div class="empty">Sem transferências TFI com estes filtros. Aparecem aqui os movimentos importados do extrato que começam por “TFI”.</div></div>`;
+  return `<h1>Transferências</h1><div class="sub">Só as transferências bancárias TFI, por pessoa: o que enviaste e o que recebeste. O nome vem do extrato; podes corrigi-lo no movimento (Mais opções → Pessoa).</div>
   <div class="toolbar"><select id="trAnoSel"><option value="todos" ${f.ano==="todos"?"selected":""}>Todos os anos</option>${ys.map(a=>`<option ${a===+f.ano?"selected":""}>${a}</option>`).join("")}</select>
     <div class="seg" id="trDir"><button data-d="" class="${!f.dir?"on":""}">Todas</button><button data-d="env" class="${f.dir==="env"?"on":""}">Enviadas</button><button data-d="rec" class="${f.dir==="rec"?"on":""}">Recebidas</button></div>
     <input type="search" id="trQ" placeholder="Procurar pessoa…" value="${esc(f.q)}" style="max-width:260px"></div>
