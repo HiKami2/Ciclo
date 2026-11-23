@@ -208,19 +208,39 @@ function build(y){
   P.set(17,0,"Total",sTot);P.set(17,1,null,sTot);["C","D","E"].forEach((L,j)=>P.f(17,2+j,`SUM(${L}6:${L}17)`,r2(keys.reduce((s,k)=>{const p=planOf(k)||{};return s+(j===0?+p.salario||0:j===1?+p.outros||0:(+p.salario||0)+(+p.outros||0))},0)),sTotE));P.set(17,5,null,sTot);
   P.freeze=5;
 
-  /* === Poupança === */
-  const PP=Sheet("Poupança",C.blue);PP.cols=[14,10,28,15,4,28,15];
-  header(PP,7,`Poupança ${y}`,"O que puseste de parte em cada ciclo, por destino.");
-  ["Mês","Ciclo","Destino","Valor"].forEach((h,c)=>PP.set(4,c,h,c===3?sHR:sH));PP.heights[4]=24;
+  /* === Poupança / Contas === */
+  const PP=Sheet("Poupança",C.blue);PP.cols=[14,10,26,14,3,24,14,14,14,13,13,3,12,20,30,18,13];
+  header(PP,17,`Poupança e contas ${y}`,"Depósitos de cada ciclo (à esquerda), resumo de cada conta (ao centro) e gastos pagos com as contas (à direita). Os gastos das contas não contam no plafond.");
+  ["Mês","Ciclo","Conta","Valor"].forEach((h,c)=>PP.set(4,c,h,c===3?sHR:sH));PP.heights[4]=30;
   const pl=DB.poupancas.filter(p=>p.per&&perParts(p.per)[0]===y).sort((a,b)=>a.per.localeCompare(b.per));
   pl.forEach((p,i)=>{const r=5+i;PP.set(r,0,MESES[perParts(p.per)[1]-1],sT);PP.set(r,1,p.per,sTm);PP.set(r,2,p.destino||"",sTb);PP.set(r,3,r2(p.valor),sEblue)});
-  if(!pl.length){PP.set(5,0,null,sInput);PP.set(5,1,null,sInput);PP.set(5,2,null,sInput);PP.set(5,3,null,sInputE)}
   const ppEnd=5+Math.max(pl.length,1)+40;
-  for(let r=5+Math.max(pl.length,1);r<ppEnd;r++){PP.set(r,0,null,sInput);PP.set(r,1,null,sInput);PP.set(r,2,null,sInput);PP.set(r,3,null,sInputE)}
-  PP.dv.push(`<dataValidation type="list" allowBlank="1" sqref="C6:C${ppEnd}"><formula1>$F$6:$F$${6+destinos.length+10}</formula1></dataValidation>`);
-  PP.set(4,5,"Por destino",sH);PP.set(4,6,"Total",sHR);
-  destinos.forEach((d,i)=>{const r=5+i;PP.set(r,5,d,sTb);PP.f(r,6,`SUMIFS($D$6:$D$${ppEnd},$C$6:$C$${ppEnd},F${r+1})`,r2(pl.filter(p=>p.destino===d).reduce((s,p)=>s+(+p.valor||0),0)),sEblue)});
-  const dEnd=5+destinos.length;PP.set(dEnd,5,"Total",sTot);PP.f(dEnd,6,`SUM(D6:D${ppEnd})`,r2(pl.reduce((s,p)=>s+(+p.valor||0),0)),sTotE);
+  for(let r=5+pl.length;r<ppEnd;r++){PP.set(r,0,null,sInput);PP.set(r,1,null,sInput);PP.set(r,2,null,sInput);PP.set(r,3,null,sInputE)}
+  PP.dv.push(`<dataValidation type="list" allowBlank="1" sqref="C6:C${ppEnd}"><formula1>$F$6:$F$${5+Math.max(destinos.length,1)}</formula1></dataValidation>`);
+  // gastos das contas (do ano)
+  const cm=(DB.contaMovs||[]).filter(x=>x.data&&+x.data.slice(0,4)===y).sort((a,b)=>a.data.localeCompare(b.data));
+  ["Data","Conta","Descrição","Categoria","Valor"].forEach((h,j)=>PP.set(4,12+j,h,j===4?sHR:sH));
+  cm.forEach((x,i)=>{const r=5+i;PP.set(r,12,serial(x.data),sD);PP.set(r,13,x.conta,sTb);PP.set(r,14,x.desc||"",sT);PP.set(r,15,x.cat||"Sem categoria",sTm);PP.set(r,16,r2(x.valor),x.valor<0?sEg:sE)});
+  const gEnd=5+Math.max(cm.length,1)+60;
+  for(let r=5+cm.length;r<gEnd;r++){PP.set(r,12,null,st({fmt:"dd/mm/yyyy",indent:1,bb:["thin",C.line],fill:"FFFBEA",h:"left"}));PP.set(r,13,null,sInput);PP.set(r,14,null,sInput);PP.set(r,15,null,sInput);PP.set(r,16,null,sInputE)}
+  PP.dv.push(`<dataValidation type="list" allowBlank="1" sqref="N6:N${gEnd}"><formula1>$F$6:$F$${5+Math.max(destinos.length,1)}</formula1></dataValidation>`);
+  // resumo por conta
+  ["Conta","Entrou no ano","Gasto no ano","Saldo atual","Objetivo","Fim"].forEach((h,j)=>PP.set(4,5+j,h,j===0?sH:sHR));
+  destinos.forEach((d,i)=>{const r=5+i,R=r+1,inf=contaInfo(d),g=metaOf(d);
+    const ent=r2(pl.filter(p=>p.destino===d).reduce((s,p)=>s+(+p.valor||0),0)),gas=r2(cm.filter(x=>x.conta===d).reduce((s,x)=>s+x.valor,0));
+    PP.set(r,5,d,sTb);
+    PP.f(r,6,`SUMIFS($D$6:$D$${ppEnd},$C$6:$C$${ppEnd},F${R})`,ent,sEblue);
+    PP.f(r,7,`SUMIFS($Q$6:$Q$${gEnd},$N$6:$N$${gEnd},F${R})`,gas,sE);
+    PP.set(r,8,r2(inf.saldo),st({fmt:EUR,b:1,bb:["thin",C.line]}));
+    PP.set(r,9,g.objetivo?r2(g.objetivo):null,sE);
+    if(inf.fim)PP.set(r,10,serial(inf.fim),st({fmt:"dd/mm/yyyy",bb:["thin",C.line],h:"right"}));
+    else PP.set(r,10,inf.prazo?fmtPer(inf.prazo):"Sem data final",st({color:C.muted,sz:9,bb:["thin",C.line],h:"right"}))});
+  const dEnd=5+destinos.length;PP.set(dEnd,5,"Total",sTot);
+  PP.f(dEnd,6,`SUM(G6:G${dEnd})`,r2(pl.reduce((s,p)=>s+(+p.valor||0),0)),sTotE);
+  PP.f(dEnd,7,`SUM(H6:H${dEnd})`,r2(cm.reduce((s,x)=>s+x.valor,0)),sTotE);
+  PP.f(dEnd,8,`SUM(I6:I${dEnd})`,r2(destinos.reduce((s,d)=>s+contaInfo(d).saldo,0)),sTotE);
+  PP.set(dEnd,9,null,sTot);PP.set(dEnd,10,null,sTot);
+  PP.set(dEnd+2,5,"Saldo atual = tudo o que já entrou na conta (todos os anos) menos o que já se gastou, calculado pela app no dia da exportação.",sNote);PP.merge(dEnd+2,5,dEnd+3,10);
   PP.freeze=5;
 
   /* === Categorias === */
@@ -337,7 +357,7 @@ function openExport(){
   const ys=yearsAvail(),y0=UI.view==="anual"&&UI.ano?UI.ano:perParts(UI.per||curPeriod())[0];
   $("#modal").innerHTML=`<header>Exportar para Excel<button class="iconbtn x" data-act="close">✕</button></header>
   <div class="body"><div class="muted" style="font-size:13.5px">Um livro formatado e pronto a usar, com fórmulas ligadas entre si: podes continuar a registar no Excel e os totais atualizam-se.</div>
-  <div class="xlsheets"><div><b>Resumo</b><span>cartões, mês a mês e gráfico</span></div><div><b>Movimentos</b><span>tabela com filtros e listas</span></div><div><b>Categorias</b><span>gasto por mês e orçamento</span></div><div><b>Plano</b><span>rendimento por ciclo</span></div><div><b>Poupança</b><span>por destino</span></div><div><b>Definições</b><span>dia do ordenado e feriados</span></div></div>
+  <div class="xlsheets"><div><b>Resumo</b><span>cartões, mês a mês e gráfico</span></div><div><b>Movimentos</b><span>tabela com filtros e listas</span></div><div><b>Categorias</b><span>gasto por mês e orçamento</span></div><div><b>Plano</b><span>rendimento por ciclo</span></div><div><b>Poupança</b><span>contas, saldos, gastos e fim</span></div><div><b>Definições</b><span>dia do ordenado e feriados</span></div></div>
   <label>Ano</label><div class="seg full" id="xlAno">${ys.map(a=>`<button data-y="${a}" class="${a===y0?"on":""}">${a}</button>`).join("")}</div></div>
   <div class="actions"><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="doxlsx">Exportar ${y0}</button></div>`;
   $("#modalBg").classList.add("open");

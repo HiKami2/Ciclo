@@ -79,17 +79,20 @@ function errMsg(e){const m=String(e&&e.message||e);
 
 /* --- registo de alterações por item (para juntar dados de vários dispositivos) --- */
 let SNAP=null;
-function snapOf(d){const s={m:new Map(),p:new Map(),pl:new Map(),cfg:""};
+function snapOf(d){const s={m:new Map(),p:new Map(),pl:new Map(),c:new Map(),cfg:""};
+  (d.contaMovs||[]).forEach(x=>{const {u,...r}=x;s.c.set(x.id,JSON.stringify(r))});
   d.movimentos.forEach(x=>{const {u,...r}=x;s.m.set(x.id,JSON.stringify(r))});
   d.poupancas.forEach(x=>{const {u,...r}=x;s.p.set(x.id,JSON.stringify(r))});
   d.plano.forEach(x=>{const {u,...r}=x;s.pl.set(x.per,JSON.stringify(r))});
   const {u,...c}=d.config;s.cfg=JSON.stringify(c);return s}
 function stamp(){
-  const now=Date.now(),old=SNAP||snapOf({movimentos:[],poupancas:[],plano:[],config:{}});const cur=snapOf(DB);
+  const now=Date.now(),old=SNAP||snapOf({movimentos:[],poupancas:[],plano:[],contaMovs:[],config:{}});const cur=snapOf(DB);
   DB.apagados=DB.apagados||{};
   DB.movimentos.forEach(x=>{if(old.m.get(x.id)!==cur.m.get(x.id))x.u=now});
   DB.poupancas.forEach(x=>{if(old.p.get(x.id)!==cur.p.get(x.id))x.u=now});
   DB.plano.forEach(x=>{if(old.pl.get(x.per)!==cur.pl.get(x.per))x.u=now});
+  DB.contaMovs.forEach(x=>{if(old.c.get(x.id)!==cur.c.get(x.id))x.u=now});
+  for(const id of old.c.keys())if(!cur.c.has(id))DB.apagados[id]=now;
   if(old.cfg!==cur.cfg)DB.config.u=now;
   for(const id of old.m.keys())if(!cur.m.has(id))DB.apagados[id]=now;
   for(const id of old.p.keys())if(!cur.p.has(id))DB.apagados[id]=now;
@@ -101,7 +104,7 @@ function mergeDB(a,b){ // junta dois conjuntos de dados; vence a alteração mai
   const ca=a.config||{},cb=b.config||{};
   return normalize({versao:Math.max(a.versao||1,b.versao||1),config:(cb.u||0)>(ca.u||0)?cb:ca,
     movimentos:byKey(a.movimentos||[],b.movimentos||[],"id"),poupancas:byKey(a.poupancas||[],b.poupancas||[],"id"),
-    plano:byKey(a.plano||[],b.plano||[],"per"),apagados:ap})}
+    plano:byKey(a.plano||[],b.plano||[],"per"),contaMovs:byKey(a.contaMovs||[],b.contaMovs||[],"id"),apagados:ap})}
 
 /* --- ciclo de sincronização --- */
 function changed(){SUMC=new Map();DB.alterado=new Date().toISOString();stamp();lsSet();scheduleSync(1200);render()}
@@ -152,7 +155,7 @@ async function logoutDevice(){
 
 function validData(d){return d&&Array.isArray(d.movimentos)&&d.config}
 function normalize(d){
-  d.versao=d.versao||1;d.plano=d.plano||[];d.poupancas=d.poupancas||[];d.movimentos=d.movimentos||[];d.apagados=d.apagados||{};
+  d.versao=d.versao||1;d.plano=d.plano||[];d.poupancas=d.poupancas||[];d.movimentos=d.movimentos||[];d.contaMovs=d.contaMovs||[];d.apagados=d.apagados||{};
   d.config=d.config||{};d.config.categorias=d.config.categorias||[];d.config.destinos=d.config.destinos||[];d.config.metas=d.config.metas||{};d.config.feriados=d.config.feriados||[];
   d.config.diaOrdenado=d.config.diaOrdenado||22;return d}
 function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=(19*a+b-Math.floor(b/4)-Math.floor((b-Math.floor((b+8)/25)+1)/3)+15)%30,
@@ -161,7 +164,7 @@ function feriadosPT(y0,n){const out=[];for(let y=y0;y<y0+n;y++){const E=easter(y
   out.push(`${y}-01-01`,add(-2),add(0),`${y}-04-25`,`${y}-05-01`,add(60),`${y}-06-10`,`${y}-08-15`,`${y}-10-05`,`${y}-11-01`,`${y}-12-01`,`${y}-12-08`,`${y}-12-25`)}return out.sort()}
 function emptyDB(){const y=new Date().getFullYear();return normalize({versao:2,config:{diaOrdenado:22,feriados:feriadosPT(y-1,6),
   categorias:["Subscrições","Carro","Combustível","Casa","Restauração","Compras","Viagens","Lazer","Prendas","Apostas","Família e amigos","Saúde e desporto","Banco e taxas","Dia a dia","Entradas","Ajustes","Outros"].map(n=>({nome:n,orcamento:null})),
-  destinos:["Poupança Mensal","Carro - Imprevistos","Férias"]},movimentos:[],plano:[],poupancas:[]})}
+  destinos:["Poupança Mensal","Carro - Imprevistos","Férias"]},movimentos:[],plano:[],poupancas:[],contaMovs:[]})}
 
 function download(name,content,type){
   const b=new Blob([content],{type});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
@@ -217,7 +220,7 @@ function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e
 /* ================= Render ================= */
 function render(){SUMC=new Map();
   document.querySelectorAll("nav.side button").forEach(b=>b.classList.toggle("on",b.dataset.view===UI.view));
-  const v={mensal:vMensal,anual:vAnual,movimentos:vMovimentos,plano:vPlano,definicoes:vDefinicoes}[UI.view];
+  const v={mensal:vMensal,anual:vAnual,movimentos:vMovimentos,contas:vContas,plano:vPlano,definicoes:vDefinicoes}[UI.view]||vMensal;
   $("#main").innerHTML=banner()+v();bindView();renderSaveState()}
 function banner(){
   if(!SYNC&&UI.view!=="definicoes")return `<div class="banner info">☁️ Liga a sincronização para usares os mesmos dados no telemóvel e no PC. <button class="btn small" data-act="syncsetup">Configurar sincronização</button></div>`;
@@ -390,7 +393,8 @@ function goalInfo(d){
   const all=DB.poupancas.filter(p=>p.destino===d);
   const guardado=all.filter(p=>p.per<=cur).reduce((s,p)=>s+(+p.valor||0),0);
   const planeado=all.reduce((s,p)=>s+(+p.valor||0),0);
-  const r={d,g,guardado,planeado,obj:+g.objetivo||0,prazo:g.prazo||null};
+  const r={d,g,guardado,planeado,obj:+g.objetivo||0,prazo:g.fim?periodOfDate(parseISO(g.fim)):(g.prazo||null),fim:g.fim||null};
+  if(r.fim)r.dias=Math.round((parseISO(r.fim)-today0())/864e5);
   if(r.obj)r.pct=Math.min(1,guardado/r.obj),r.pctPlan=Math.min(1,planeado/r.obj);
   if(r.prazo){
     r.mesesRest=Math.max(0,monthsBetween(cur,r.prazo));
@@ -407,7 +411,7 @@ const TRASH='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke=
 const fmtPer=k=>{const [y,m]=perParts(k);return `${MESES[m-1]} ${y}`};
 function goalCard(i){
   const r=goalInfo(i);const chipTxt={ok:["pago","Objetivo atingido 🎉"],plan:["pago","No bom caminho"],short:["pend","Falta planear"],late:["sem","Prazo ultrapassado"],open:["paus","Sem data final"]}[r.estado];
-  const prazoTxt=r.prazo?`até ${fmtPer(r.prazo)}${r.mesesRest>0?` · faltam ${r.mesesRest} ${r.mesesRest===1?"mês":"meses"}`:""}`:"Sem data final";
+  const prazoTxt=fimTxt(r);
   return `<div class="goal" data-goal="${esc(i)}">
     <div class="goal-h"><div class="goal-n">${esc(i)}</div><span class="chip ${chipTxt[0]}">${chipTxt[1]}</span></div>
     <div class="goal-v">${eur(r.guardado)}${r.obj?` <span class="muted">de ${eur(r.obj)}</span>`:""}</div>
@@ -419,40 +423,133 @@ function goalCard(i){
   </div>`}
 function openGoal(name){
   const isNew=name==null;const g=isNew?{}:metaOf(name);const cur=curPeriod();const [cy]=perParts(cur);
-  const [py,pm]=g.prazo?perParts(g.prazo):[cy+1,perParts(cur)[1]];
+  const fimV=g.fim||(g.prazo?iso(new Date(perParts(g.prazo)[0],perParts(g.prazo)[1],0)):"");
   editing={goal:true,orig:name};
-  $("#modal").innerHTML=`<header>${isNew?"Novo objetivo de poupança":"Editar objetivo"}<button class="iconbtn x" data-act="close">✕</button></header>
+  $("#modal").innerHTML=`<header>${isNew?"Nova conta":"Editar conta"}<button class="iconbtn x" data-act="close">✕</button></header>
   <form class="body" id="goalForm" autocomplete="off">
-    <div class="field"><label>Nome</label><input type="text" id="gNome" value="${esc(name||"")}" placeholder="Ex.: Férias, Fundo de emergência, Carro…"></div>
+    <div class="field"><label>Nome</label><input type="text" id="gNome" value="${esc(name||"")}" placeholder="Ex.: Itália, Fundo de emergência, Carro…"></div>
     <div class="field"><label>Objetivo (opcional)</label><label class="amount" style="padding:4px 16px"><input type="number" inputmode="decimal" step="0.01" min="0" id="gObj" value="${g.objetivo||""}" placeholder="Sem valor definido" style="font-size:26px !important;min-height:44px"><span style="font-size:20px">€</span></label></div>
-    <div class="field"><label>Prazo</label><div class="seg full" id="gTipo"><button type="button" data-p="sem" class="${g.prazo?"":"on"}">Sem data final</button><button type="button" data-p="ate" class="${g.prazo?"on":""}">Até uma data</button></div></div>
-    <div class="two" id="gData" style="${g.prazo?"":"display:none"}"><select id="gMes">${MESES.map((n,i)=>`<option value="${i+1}" ${i+1===pm?"selected":""}>${n}</option>`).join("")}</select>
-      <select id="gAno">${Array.from({length:12},(_,i)=>cy-1+i).map(a=>`<option ${a===py?"selected":""}>${a}</option>`).join("")}</select></div>
+    <div class="field"><label>Fim</label><div class="seg full" id="gTipo"><button type="button" data-p="sem" class="${fimV?"":"on"}">Sem data final</button><button type="button" data-p="ate" class="${fimV?"on":""}">Até um dia</button></div></div>
+    <div class="field" id="gData" style="${fimV?"":"display:none"}"><input type="date" id="gFim" value="${fimV}"></div>
     <div class="muted" id="gInfo" style="font-size:12.5px"></div>
   </form>
   <div class="actions">${isNew?"":`<button class="btn danger left" data-act="delgoal">Apagar</button>`}<button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="savegoal">Guardar</button></div>`;
   $("#modalBg").classList.add("open");
   const info=()=>{const ate=$("#gTipo .on").dataset.p==="ate";$("#gData").style.display=ate?"":"none";
     const obj=+$("#gObj").value||0;const nm=$("#gNome").value.trim()||name;let t="";
-    if(ate&&obj){const prazo=perKey(+$("#gAno").value,+$("#gMes").value);const meses=Math.max(0,monthsBetween(cur,prazo));
+    const fimI=$("#gFim").value;
+    if(ate&&obj&&fimI){const prazo=periodOfDate(parseISO(fimI));const meses=Math.max(0,monthsBetween(cur,prazo));
       const guard=nm?DB.poupancas.filter(p=>p.destino===nm&&p.per<=cur).reduce((s,p)=>s+(+p.valor||0),0):0;const falta=Math.max(0,obj-guard);
       t=meses>0?`Faltam ${eur(falta)} em ${meses} ${meses===1?"mês":"meses"}: cerca de <b>${eur(falta/meses)}/mês</b>.`:`O prazo é este mês: faltam ${eur(falta)}.`}
+    else if(ate&&fimI){const dd=Math.round((parseISO(fimI)-today0())/864e5);t=dd>=0?`Termina a ${fmtD(fimI)}: faltam ${dd} ${dd===1?"dia":"dias"}.`:`Terminou a ${fmtD(fimI)}.`}
     else if(obj)t="Sem data final: a app mostra o progresso até chegares ao objetivo.";
     else t="Sem objetivo nem data: serve só para ires juntando (ex.: fundo de emergência).";
     $("#gInfo").innerHTML=t};
   $("#gTipo").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#gTipo").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));info()});
-  ["gObj","gMes","gAno","gNome"].forEach(id=>$("#"+id).addEventListener("input",info));info();
+  ["gObj","gFim","gNome"].forEach(id=>$("#"+id).addEventListener("input",info));info();
   $("#goalForm").addEventListener("submit",e=>{e.preventDefault();saveGoal()});
   setTimeout(()=>$(isNew?"#gNome":"#gObj").focus(),30)}
 function saveGoal(){
   const nome=$("#gNome").value.trim();const orig=editing.orig;
   if(!nome){toast("Falta o nome");return}
-  if(nome!==orig&&DB.config.destinos.includes(nome)){toast("Já existe um objetivo com esse nome");return}
+  if(nome!==orig&&DB.config.destinos.includes(nome)){toast("Já existe uma conta com esse nome");return}
   const obj=parseFloat($("#gObj").value);const ate=$("#gTipo .on").dataset.p==="ate";
-  const meta={objetivo:obj>0?Math.round(obj*100)/100:null,prazo:ate?perKey(+$("#gAno").value,+$("#gMes").value):null};
+  const fim=ate?$("#gFim").value:"";if(ate&&!fim){toast("Escolhe o dia do fim");return}
+  const meta={objetivo:obj>0?Math.round(obj*100)/100:null,fim:fim||null,prazo:fim?periodOfDate(parseISO(fim)):null};
   if(orig==null)DB.config.destinos.push(nome);
-  else if(nome!==orig){DB.config.destinos=DB.config.destinos.map(d=>d===orig?nome:d);DB.poupancas.forEach(p=>{if(p.destino===orig)p.destino=nome});delete DB.config.metas[orig]}
-  DB.config.metas[nome]=meta;closeModal();changed();toast("Objetivo guardado ✔")}
+  else if(nome!==orig){DB.config.destinos=DB.config.destinos.map(d=>d===orig?nome:d);DB.poupancas.forEach(p=>{if(p.destino===orig)p.destino=nome});DB.contaMovs.forEach(c=>{if(c.conta===orig)c.conta=nome});delete DB.config.metas[orig];if(UI.conta===orig)UI.conta=nome}
+  DB.config.metas[nome]=meta;if(orig==null)UI.conta=nome;closeModal();changed();toast("Conta guardada ✔")}
+
+/* ---------- Contas (contas secundárias) ---------- */
+function contasList(){return DB.config.destinos||[]}
+function contaInfo(c){const r=goalInfo(c);const ms=DB.contaMovs.filter(x=>x.conta===c);
+  r.gasto=ms.reduce((s,x)=>s+(x.valor>0?x.valor:0),0);r.reemb=ms.reduce((s,x)=>s+(x.valor<0?-x.valor:0),0);
+  r.entrou=r.guardado+r.reemb;r.saldo=Math.round((r.entrou-r.gasto)*100)/100;r.movs=ms;
+  r.uso=r.entrou>0?Math.min(1,r.gasto/r.entrou):0;
+  r.ativa=!r.fim||r.dias>=0;return r}
+function fimTxt(r){if(r.fim){const d=r.dias;return `até ${fmtD(r.fim)} · ${d>1?`faltam ${d} dias`:d===1?"falta 1 dia":d===0?"termina hoje":`terminou há ${-d} ${d===-1?"dia":"dias"}`}`}
+  return r.prazo?`até ${fmtPer(r.prazo)}${r.mesesRest>0?` · faltam ${r.mesesRest} ${r.mesesRest===1?"mês":"meses"}`:""}`:"Sem data final"}
+const CONTA_HUE=c=>{let h=0;for(const ch of c)h=(h*31+ch.charCodeAt(0))%360;return h};
+function contaCard(c){const r=contaInfo(c),on=UI.conta===c;
+  return `<div class="conta ${on?"on":""} ${r.ativa?"":"done"}" data-conta="${esc(c)}" style="--h:${CONTA_HUE(c)}">
+    <div class="conta-h"><span class="conta-ic">${esc(c.trim().charAt(0).toUpperCase())}</span><div class="conta-n">${esc(c)}</div>${r.fim&&r.dias>=0&&r.dias<=14?`<span class="chip pend">${r.dias===0?"hoje":r.dias+" d"}</span>`:""}</div>
+    <div class="conta-v ${r.saldo<0?"neg":""}">${eur(r.saldo)}</div>
+    <div class="conta-m">${r.gasto?`gasto ${eur(r.gasto)} de ${eur(r.entrou)}`:r.obj?`objetivo ${eur(r.obj)}`:"disponível"}</div>
+    <div class="gbar">${r.gasto?`<i class="use" style="width:${(r.uso*100).toFixed(1)}%"></i>`:r.obj?`<i style="width:${((r.pct||0)*100).toFixed(1)}%"></i>`:""}</div>
+    <div class="conta-m muted">📅 ${fimTxt(r)}</div></div>`}
+function vContas(){
+  const cs=contasList();if(UI.conta&&!cs.includes(UI.conta))UI.conta=null;
+  if(!UI.conta&&cs.length){const inf=cs.map(c=>({c,r:contaInfo(c)}));const pick=inf.filter(x=>x.r.fim&&x.r.dias>=0).sort((a,b)=>a.r.dias-b.r.dias)[0]||inf.sort((a,b)=>b.r.saldo-a.r.saldo)[0];UI.conta=pick.c}
+  const all=cs.map(contaInfo);const tot=k=>all.reduce((s,r)=>s+(r[k]||0),0);
+  const head=`<h1>Gerir contas</h1><div class="sub">Contas secundárias: o dinheiro que pões de parte e o que gastas com ele. Os gastos daqui não contam no plafond do mês.</div>`;
+  if(!cs.length)return head+`<div class="panel"><div class="empty">Ainda não tens contas. Cria uma para cada objetivo (ex.: Itália, Carro, Fundo de emergência).<br><br><button class="btn primary" data-act="newgoal">+ Nova conta</button></div></div>`;
+  return head+`<div class="cards">
+    <div class="card hero"><div class="lbl">Saldo nas contas</div><div class="val">${eur(tot("saldo"))}</div><div class="hint">${cs.length} ${cs.length===1?"conta":"contas"} · ${all.filter(r=>r.ativa).length} ativas</div></div>
+    <div class="card"><div class="lbl">Entrou</div><div class="val" style="color:var(--blue)">${eur(tot("entrou"))}</div><div class="hint">depósitos até hoje</div></div>
+    <div class="card"><div class="lbl">Gasto das contas</div><div class="val">${eur(tot("gasto"))}</div><div class="hint">fora do plafond do mês</div></div>
+  </div>
+  <div class="contas-wrap"><div class="panel"><h2>As tuas contas <button class="btn small" data-act="newgoal" style="margin-left:auto">+ Nova conta</button></h2><div class="contas">${cs.map(contaCard).join("")}</div></div>
+  ${contaDetail(UI.conta)}</div>`}
+function contaDetail(c){const r=contaInfo(c);
+  const per=c2=>{const [s]=periodRange(c2.per);return iso(s)};
+  const ent=DB.poupancas.filter(p=>p.destino===c).map(p=>({k:"dep",data:per(p),valor:p.valor,per:p.per,fut:p.per>curPeriod()}));
+  const list=[...r.movs.map(x=>({k:"mov",x,data:x.data})),...ent].sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  const cats={};r.movs.forEach(x=>{if(x.valor>0){const k=x.cat||"Sem categoria";cats[k]=(cats[k]||0)+x.valor}});
+  const catArr=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const porDia=r.fim&&r.dias>=0&&r.saldo>0?r.saldo/(r.dias+1):null;
+  const rows=list.map(it=>it.k==="mov"?`<div class="row" data-cedit="${it.x.id}">${avatar(it.x.cat)}<div class="txt"><div class="d">${esc(it.x.desc)}</div><div class="m">${fmtD(it.x.data)} · ${esc(it.x.cat||"Sem categoria")}${it.x.nota?" · "+esc(it.x.nota):""}</div></div>
+      <div class="rt"><div class="v ${it.x.valor<0?"in":""}">${it.x.valor<0?"+ "+eur(-it.x.valor):"− "+eur(it.x.valor)}</div></div></div>`
+    :`<div class="row dep"><div class="av" style="background:hsl(220 80% 55% / .13)">🏦</div><div class="txt"><div class="d">Depósito</div><div class="m">${fmtPer(it.per)} · ${it.fut?"planeado":"no Plano"}</div></div>
+      <div class="rt"><div class="v in" style="color:var(--blue)">+ ${eur(it.valor)}</div>${it.fut?`<span class="chip paus">Planeado</span>`:""}</div></div>`).join("");
+  return `<div class="panel conta-det" id="contaDet"><h2>💰 ${esc(c)} <button class="btn small" data-act="editconta" data-c="${esc(c)}" style="margin-left:auto">Editar</button></h2>
+    <div class="body"><div class="cd-top"><div><div class="muted" style="font-size:12.5px;font-weight:600">Saldo disponível</div><div class="cd-saldo ${r.saldo<0?"neg":""}">${eur(r.saldo)}</div>
+      <div class="muted" style="font-size:12.5px">📅 ${fimTxt(r)}${r.obj?` · objetivo ${eur(r.obj)}`:""}</div></div>
+      ${porDia!=null?`<div class="cd-dia"><b>${eur(porDia)}</b><span>por dia até ao fim</span></div>`:""}</div>
+    <div class="cd-stats"><div><span>Entrou</span><b style="color:var(--blue)">${eur(r.entrou)}</b></div><div><span>Gasto</span><b>${eur(r.gasto)}</b></div><div><span>Usado</span><b>${(r.uso*100).toFixed(0)}%</b></div></div>
+    <div class="gbar big"><i class="use" style="width:${(r.uso*100).toFixed(1)}%"></i></div>
+    ${r.planeado>r.guardado?`<div class="muted" style="font-size:12.5px">Ainda tens ${eur(r.planeado-r.guardado)} planeados para meses seguintes.</div>`:""}
+    <div class="cd-act"><button class="btn primary" data-act="addcmov" data-c="${esc(c)}">− Registar gasto</button><button class="btn" data-act="addcmov" data-k="r" data-c="${esc(c)}">+ Reembolso</button><button class="btn" data-act="depconta" data-c="${esc(c)}">🏦 Depositar</button></div>
+    ${catArr.length?`<div class="cd-cats">${catArr.map(([k,v])=>`<span class="cdc">${catIcon(k)} ${esc(k)} <b>${eur(v)}</b></span>`).join("")}</div>`:""}</div>
+    <div class="list">${rows||`<div class="empty">Ainda sem movimentos nesta conta.</div>`}</div></div>`}
+function openContaMov(cm,preset={}){
+  const isNew=!cm;const cs=contasList();
+  editing=cm?{...cm,cmov:true}:{id:uid(),cmov:true,conta:preset.conta||cs[0],data:iso(today0()),desc:"",valor:null,cat:"",nota:""};
+  const rec=cm?cm.valor<0:preset._k==="r";
+  const descs=[...new Set(DB.contaMovs.map(m=>m.desc))].sort();
+  $("#modal").innerHTML=`<header>${isNew?"Movimento da conta":"Editar movimento da conta"}<button class="iconbtn x" data-act="close">✕</button></header>
+  <form class="body" id="cmForm" autocomplete="off">
+    <div class="seg full kind" id="kind"><button type="button" data-k="g" class="${rec?"":"on"}">− Gasto</button><button type="button" data-k="r" class="${rec?"on":""}">+ Reembolso</button></div>
+    <label class="amount"><input type="number" inputmode="decimal" step="0.01" min="0" id="cVal" value="${editing.valor==null?"":Math.abs(editing.valor)}" placeholder="0,00" aria-label="Valor"><span>€</span></label>
+    <div class="field"><label>Conta</label><select id="cConta">${cs.map(c=>`<option value="${esc(c)}" ${c===editing.conta?"selected":""}>💰 ${esc(c)} · saldo ${eur(contaInfo(c).saldo)}</option>`).join("")}</select></div>
+    <div class="field"><label>Descrição</label><input type="text" id="cDesc" placeholder="Ex.: Jantar em Roma, Bilhetes…" list="cDescList" value="${esc(editing.desc)}" enterkeyhint="done"><datalist id="cDescList">${descs.map(d=>`<option value="${esc(d)}">`).join("")}</datalist></div>
+    <div class="field"><label>Data</label><input type="date" id="cData" value="${editing.data||""}"></div>
+    <div class="field"><label>Categoria</label><div class="catchips" id="catChips">${DB.config.categorias.map(c=>`<button type="button" data-c="${esc(c.nome)}" class="${c.nome===editing.cat?"on":""}">${catIcon(c.nome)} ${esc(c.nome)}</button>`).join("")}</div></div>
+    <div class="field"><label>Notas</label><input type="text" id="cNota" value="${esc(editing.nota||"")}"></div>
+    <div class="muted" style="font-size:12px">Não conta no plafond do mês: sai só do saldo da conta.</div>
+  </form>
+  <div class="actions">${isNew?"":`<button class="btn danger left" data-act="delcmov">Apagar</button>`}<button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="savecmov">Guardar</button></div>`;
+  $("#modalBg").classList.add("open");
+  $("#kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;$("#kind").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))});
+  $("#catChips").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const on=!b.classList.contains("on");$("#catChips").querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.toggle("on",on)});
+  $("#cDesc").addEventListener("change",()=>{const last=[...DB.contaMovs].reverse().find(m=>m.desc===$("#cDesc").value);if(last&&isNew){$("#catChips").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.c===last.cat))}});
+  $("#cmForm").addEventListener("submit",e=>{e.preventDefault();saveContaMov()});
+  setTimeout(()=>(isNew?$("#cVal"):$("#cDesc")).focus(),30)}
+function saveContaMov(){
+  const v=parseFloat($("#cVal").value);if(!(v>0)){$("#cVal").focus();toast("Indica o valor");return}
+  const desc=$("#cDesc").value.trim()||($("#kind .on").dataset.k==="r"?"Reembolso":"");if(!desc){$("#cDesc").focus();toast("Falta a descrição");return}
+  const data=$("#cData").value;if(!data){toast("Indica a data");return}
+  const cb=$("#catChips .on");const {cmov,...base}=editing;
+  const m={...base,conta:$("#cConta").value,desc,data,valor:Math.round(v*100)/100*($("#kind .on").dataset.k==="r"?-1:1),cat:cb?cb.dataset.c:"",nota:$("#cNota").value.trim()};
+  const i=DB.contaMovs.findIndex(x=>x.id===m.id);if(i>=0)DB.contaMovs[i]=m;else DB.contaMovs.push(m);
+  UI.conta=m.conta;closeModal();changed();const sl=contaInfo(m.conta).saldo;toast(`Guardado ✔ Saldo de ${m.conta}: ${eur(sl)}`)}
+function openDeposit(c){editing={dep:true,conta:c};const cur=curPeriod();
+  const opts=[-1,0,1,2,3,4,5,6].map(i=>addMonths(cur,i));
+  $("#modal").innerHTML=`<header>Depositar em ${esc(c)}<button class="iconbtn x" data-act="close">✕</button></header>
+  <form class="body" id="dForm" autocomplete="off"><label class="amount"><input type="number" inputmode="decimal" step="0.01" min="0" id="dVal" placeholder="0,00"><span>€</span></label>
+    <div class="field"><label>Mês</label><select id="dPer">${opts.map(k=>`<option value="${k}" ${k===cur?"selected":""}>${fmtPer(k)}</option>`).join("")}</select></div>
+    <div class="muted" style="font-size:12.5px">Fica registado como poupança desse mês (no Plano) e sai do plafond desse mês.</div></form>
+  <div class="actions"><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="savedep">Depositar</button></div>`;
+  $("#modalBg").classList.add("open");$("#dForm").addEventListener("submit",e=>{e.preventDefault();$("[data-act=savedep]").click()});setTimeout(()=>$("#dVal").focus(),30)}
 
 function prestPanel(){
   const gs=prestGroups(),ativos=gs.filter(g=>g.falta>0.004),feitos=gs.length-ativos.length;
@@ -499,8 +596,7 @@ function vPlano(){
   return `<h1>Plano</h1><div class="sub">Rendimento e poupança de cada mês de ${y}.</div>
   <div class="toolbar"><button class="iconbtn" data-act="yprev">‹</button><select id="selAnoA">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select><button class="iconbtn" data-act="ynext">›</button>
     <button class="btn small" data-act="copysal">Repetir salário de janeiro</button></div>
-  <div class="panel" style="margin-bottom:16px"><h2>🎯 Objetivos de poupança <button class="btn small" data-act="newgoal" style="margin-left:auto">+ Novo objetivo</button></h2>
-    <div class="goals">${DB.config.destinos.map(goalCard).join("")||`<div class="empty">Cria um objetivo: com valor e data (ex.: Férias, 1500 € até junho) ou sem data final (ex.: Fundo de emergência).</div>`}</div></div>
+  <button class="pline" data-act="gocontas">🎯 Objetivos e saldos das poupanças: agora em <b>Contas</b><span class="muted" style="margin-left:auto">abrir ›</span></button>
   ${prestPanel()}
   <div class="panel inline-table" style="overflow:auto;margin-bottom:16px"><h2>Rendimentos <span class="tot">${eur(MESES.reduce((t,_,i)=>t+rendOf(perKey(y,i+1)),0))}</span></h2><table>
     <tr><th>Mês</th><th>Salário</th><th>Outros <span class="lg-only" style="text-transform:none;font-weight:500">(subsídios, extras)</span></th><th class="lg-cell">Cartão refeição</th><th class="lg-cell" style="text-align:left">Notas</th></tr>
@@ -577,6 +673,7 @@ function openEditor(mv,preset={}){
       <div id="prestBox" style="display:none;margin-top:10px"><div class="field"><label>Número de prestações</label><div class="seg full" id="prestN">${[2,3,4,6,12].map(n=>`<button type="button" data-n="${n}" class="${n===3?"on":""}">${n}x</button>`).join("")}</div></div>
       <div class="muted" id="prestInfo" style="font-size:12.5px;margin-top:8px"></div></div></div>`:(editing.prest?`<div class="prestwrap"><b>💳 Prestação ${editing.prest.n}/${editing.prest.total}</b> <span class="muted">de “${esc(editing.prest.nome)}” (${eur(editing.prest.compra)})</span>
       <div style="margin-top:8px"><button type="button" class="btn small danger" data-act="delprest">Apagar todas as prestações desta compra</button></div></div>`:"")}
+    ${isNew&&contasList().length?`<div class="field"><label>Pago com</label><select id="fConta"><option value="">Conta principal (conta no mês)</option>${contasList().map(c=>`<option value="${esc(c)}" ${preset.conta===c?"selected":""}>💰 ${esc(c)} · saldo ${eur(contaInfo(c).saldo)}</option>`).join("")}</select></div>`:""}
     <label class="toggle"><input type="checkbox" id="fPaus" ${editing.pausado?"checked":""}> Pausado (não conta nos gastos)</label>
     <details ${editing.ajuste||editing.nota?"open":""}><summary>Mais opções</summary><div style="display:grid;gap:12px;margin-top:10px">
       <div class="field"><label>Contar noutro mês (opcional)</label><div class="two"><select id="fAjM"><option value="">Automático (pela data)</option>${MESES.map((n,i)=>`<option value="${i+1}" ${editing.ajuste&&perParts(editing.ajuste)[1]===i+1?"selected":""}>${n}</option>`).join("")}</select>
@@ -616,6 +713,9 @@ function saveEditor(){
   const am=$("#fAjM").value;
   const m={...editing,desc,valor:v==null?null:Math.round(v*100)/100,data:$("#fData").value||null,tipo:$("#fTipo").value,cat:$("#fCat").value,
     pausado:$("#fPaus").checked,ajuste:am?perKey(+$("#fAjY").value,+am):null,nota:$("#fNota").value.trim()};
+  const fc=$("#fConta");
+  if(fc&&fc.value){if(!m.data){toast("Indica a data");return}if($("#fPrest")&&$("#fPrest").checked){toast("As prestações são só para a conta principal");return}
+    DB.contaMovs.push({id:uid(),conta:fc.value,data:m.data,desc,valor:m.valor,cat:m.cat,nota:m.nota});UI.conta=fc.value;closeModal();changed();toast(`Registado na conta ${fc.value} ✔`);return}
   if(!m.data&&!m.ajuste){toast("Indica a data ou o mês");return}
   // se o mês automático for igual ao ajuste, limpa o ajuste
   if(m.ajuste&&m.data&&periodOfDate(parseISO(m.data))===m.ajuste)m.ajuste=null;
@@ -664,7 +764,9 @@ document.addEventListener("click",async e=>{
     if(Array.isArray(f[k])){f[k]=f[k].filter(x=>String(x)!==v)}else if(k==="prest")f.prest=false;else f[k]="";render();return}
   const th=e.target.closest("[data-theme-set]");if(th){setTheme(th.dataset.themeSet);return}
   const gl=e.target.closest("[data-goal]");if(gl&&!e.target.closest("[data-act]")){openGoal(gl.dataset.goal);return}
-  if(e.target.closest("[data-gogoal]")){UI.ano=perParts(curPeriod())[0];setView("plano");return}
+  if(e.target.closest("[data-gogoal]")){setView("contas");return}
+  const cs=e.target.closest("[data-conta]");if(cs&&!e.target.closest("[data-act]")){UI.conta=cs.dataset.conta;render();if(window.innerWidth<900){const el=$("#contaDet");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})}return}
+  const ce=e.target.closest("[data-cedit]");if(ce){openContaMov(DB.contaMovs.find(c=>c.id===ce.dataset.cedit));return}
   const t=e.target.closest("[data-act],[data-edit],[data-gomes],[data-delpoup],[data-delcat],[data-deldest],nav.side button");if(!t)return;
   if(t.matches("nav.side button")){setView(t.dataset.view);return}
   if(t.dataset.edit){openEditor(DB.movimentos.find(m=>m.id===t.dataset.edit));return}
@@ -686,8 +788,17 @@ document.addEventListener("click",async e=>{
     case"delprest":{if(t.dataset.confirm){const g=editing.prest.grupo;const n=DB.movimentos.filter(x=>x.prest&&x.prest.grupo===g).length;DB.movimentos=DB.movimentos.filter(x=>!(x.prest&&x.prest.grupo===g));closeModal();changed();toast(`${n} prestações apagadas`)}else{t.dataset.confirm="1";t.textContent="Confirmar: apagar todas"}break}
     case"goprest":UI.ano=perParts(curPeriod())[0];setView("plano");setTimeout(()=>{const el=$("#prestPanel");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50);break;
     case"savegoal":saveGoal();break;
-    case"delgoal":{const n=editing.orig;if(DB.poupancas.some(p=>p.destino===n)){toast("Há poupanças registadas neste objetivo: remove-as primeiro no Plano");break}
-      if(t.dataset.confirm){DB.config.destinos=DB.config.destinos.filter(d=>d!==n);delete DB.config.metas[n];closeModal();changed();toast("Objetivo apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break}
+    case"gocontas":setView("contas");break;
+    case"editconta":openGoal(t.dataset.c);break;
+    case"addcmov":openContaMov(null,{conta:t.dataset.c||UI.conta,valor:t.dataset.k==="r"?-0:null,_k:t.dataset.k||"g"});break;
+    case"savecmov":saveContaMov();break;
+    case"delcmov":if(t.dataset.confirm){DB.contaMovs=DB.contaMovs.filter(c=>c.id!==editing.id);closeModal();changed();toast("Apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break;
+    case"depconta":openDeposit(t.dataset.c||UI.conta);break;
+    case"savedep":{const v=parseFloat($("#dVal").value);if(!(v>0)){toast("Indica o valor");break}
+      DB.poupancas.push({id:uid(),per:$("#dPer").value,destino:editing.conta,valor:Math.round(v*100)/100});closeModal();changed();toast("Depósito registado ✔");break}
+    case"delgoal":{const n=editing.orig;if(DB.poupancas.some(p=>p.destino===n)){toast("Há depósitos nesta conta: remove-os primeiro no Plano");break}
+      if(DB.contaMovs.some(c=>c.conta===n)){toast("Há gastos registados nesta conta: apaga-os primeiro");break}
+      if(t.dataset.confirm){DB.config.destinos=DB.config.destinos.filter(d=>d!==n);delete DB.config.metas[n];closeModal();changed();toast("Conta apagada")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break}
     case"del":if(t.dataset.confirm){DB.movimentos=DB.movimentos.filter(m=>m.id!==editing.id);closeModal();changed();toast("Apagado")}else{t.dataset.confirm="1";t.textContent="Confirmar apagar"}break;
     case"dup":{const c={...editing,id:uid()};delete c.prest;closeModal();openEditor(null,{...c,id:uid()});break}
     case"prev":UI.per=addMonths(UI.per,-1);render();break;
@@ -718,11 +829,11 @@ document.addEventListener("click",async e=>{
     case"wipe":if(t.dataset.confirm){await logoutDevice()}else{t.dataset.confirm="1";t.textContent="Clica outra vez para confirmar"}break;
   }
 });
-$("#fab").addEventListener("click",()=>openEditor(null));
+$("#fab").addEventListener("click",()=>{if(UI.view==="contas"&&contasList().length)openContaMov(null,{conta:UI.conta||contasList()[0]});else openEditor(null)});
 $("#modalBg").addEventListener("mousedown",e=>{if(e.target.id==="modalBg")closeModal()});
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&editing)closeModal();
-  if(e.key==="Enter"&&editing&&editing.id&&(e.ctrlKey||e.metaKey))saveEditor();
+  if(e.key==="Enter"&&editing&&editing.id&&(e.ctrlKey||e.metaKey))(editing.cmov?saveContaMov():saveEditor());
   if(!editing&&(e.key==="n"||e.key==="N")&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();openEditor(null)}});
 $("#importInput").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());if(!validData(d))throw 0;const imp=normalize(d);
