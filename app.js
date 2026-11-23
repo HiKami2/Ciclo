@@ -427,11 +427,12 @@ function vTransf(){
       <td>${x.n}</td><td>${x.env?eur(x.env):"–"}</td><td class="pos">${x.rec?eur(x.rec):"–"}</td><td>${balTxt(x)}</td><td class="muted">${x.last?fmtD(x.last):"–"}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">Nada encontrado.</td></tr>`}
   </tbody></table></div>${det}</div>`}
 
+function altTxt(u){if(!u)return"sem registo de alteração";const d=new Date(u);return "alterado a "+d.toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit"})+" às "+d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}
 function vMovimentos(){
   const f=UI.filtro;
   let arr=DB.movimentos.filter(m=>passa(m,f));
   const ord=f.ord||"data";
-  arr.sort(ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
+  arr.sort(ord==="alt"?(a,b)=>(b.u||0)-(a.u||0):ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
   const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);const act=filtroAtivo(f);
   const small=window.innerWidth<=700,lim=UI.movLim||(UI.movLim=60),vis=arr.slice(0,lim);
   const more=arr.length>lim?`<div class="empty"><button class="btn small" data-act="movmore">Mostrar mais (${Math.min(arr.length-lim,120)} de ${arr.length-lim})</button></div>`:"";
@@ -439,15 +440,15 @@ function vMovimentos(){
   <div class="toolbar">
     <input type="search" id="fq" placeholder="Pesquisar descrição, categoria ou nota…" value="${esc(f.q)}" style="flex:1;min-width:200px">
     <button class="btn ${act.length?"primary":""}" data-act="openfilt">${FILT_ICON} Filtros${act.length?` (${act.length})`:""}</button>
-    <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option></select>
+    <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option><option value="alt" ${ord==="alt"?"selected":""}>Alterados recentemente</option></select>
     <button class="btn small" data-act="impextrato">🏦 Importar extrato</button>
   </div>
   ${act.length?`<div class="fchips">${act.map(([k,v,t])=>`<button class="fchip" data-rmf="${k}" data-rmv="${esc(String(v))}">${esc(t)} <span>✕</span></button>`).join("")}<button class="fchip clear" data-act="clearfilt">Limpar tudo</button></div>`:""}
   <div class="msum"><span><b>${arr.length}</b> registos</span><span>Gasto <b>${eur(tg)}</b></span><span>Recebido <b style="color:var(--green)">${eur(tr)}</b></span><span>Saldo <b>${eur(tr-tg)}</b></span></div>
-  ${small?`<div class="panel"><div class="list">${vis.map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div>${more}</div>`:`
+  ${small?`<div class="panel"><div class="list">${vis.map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}${ord==="alt"?" · "+altTxt(x.u):""}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div>${more}</div>`:`
   <div class="panel" style="overflow:auto"><table>
     <tr><th>Data</th><th style="text-align:left">Descrição</th><th style="text-align:left">Categoria</th><th style="text-align:left">Tipo</th><th style="text-align:left">Mês</th><th>Situação</th><th>Valor</th></tr>
-    ${vis.map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
+    ${vis.map(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[0,0];return `<tr class="click" data-edit="${m.id}"><td>${m.data?fmtD(m.data):"—"}</td><td style="text-align:left">${esc(m.desc)}${ord==="alt"?`<div class="muted" style="font-size:11.5px">${altTxt(m.u)}</div>`:""}</td><td style="text-align:left">${esc(m.cat||"")}</td><td style="text-align:left">${m.tipo}</td><td style="text-align:left">${p?MES3[mm-1]+" "+y:"—"}</td><td>${chip(m)}</td><td class="${m.valor<0?"pos":""}"><b>${m.valor==null?"—":m.valor<0?"+ "+eur(-m.valor):eur(m.valor)}</b></td></tr>`}).join("")}
   </table>${more}${!arr.length?`<div class="empty">Nada encontrado.</div>`:""}</div>`}`}
 
 /* ---------- Plano ---------- */
