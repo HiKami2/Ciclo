@@ -386,10 +386,14 @@ function vTransf(){
   let all=transfMovs().filter(t=>{const p=periodOf(t.m);return f.ano==="todos"||(p&&perParts(p)[0]===+f.ano)});
   if(f.dir)all=all.filter(t=>f.dir==="env"?t.m.valor>0:t.m.valor<0);
   if(f.q){const q=N0(f.q);all=all.filter(t=>N0(t.p).includes(q)||N0(t.m.desc).includes(q))}
-  const g={};for(const t of all){const x=g[t.k]||(g[t.k]={k:t.k,p:t.p,env:0,rec:0,n:0,last:"",items:[]});
-    if(t.m.valor>0)x.env+=t.m.valor;else x.rec+=-t.m.valor;x.n++;if((t.m.data||"")>x.last)x.last=t.m.data||"";x.items.push(t.m)}
+  const g={};for(const t of all){const x=g[t.k]||(g[t.k]={k:t.k,p:t.p,env:0,rec:0,envA:0,recA:0,n:0,last:"",items:[]});
+    const ap=t.m.cat==="Apostas";if(t.m.valor>0){x.env+=t.m.valor;if(ap)x.envA+=t.m.valor}else{x.rec+=-t.m.valor;if(ap)x.recA+=-t.m.valor}x.n++;if((t.m.data||"")>x.last)x.last=t.m.data||"";x.items.push(t.m)}
   const arr=Object.values(g).sort((a,b)=>(b.env+b.rec)-(a.env+a.rec));
-  const T={env:arr.reduce((s,x)=>s+x.env,0),rec:arr.reduce((s,x)=>s+x.rec,0)};
+  arr.forEach(x=>{x.bal=Math.round(((x.rec-x.recA)-(x.env-x.envA))*100)/100;x.apo=Math.round((x.recA-x.envA)*100)/100;x.temA=x.envA>0||x.recA>0;x.soA=x.temA&&x.envA===x.env&&x.recA===x.rec});
+  const T={env:arr.reduce((s,x)=>s+x.env,0),rec:arr.reduce((s,x)=>s+x.rec,0),deves:arr.reduce((s,x)=>s+Math.max(0,x.bal),0),devem:arr.reduce((s,x)=>s+Math.max(0,-x.bal),0),apo:arr.reduce((s,x)=>s+x.apo,0),temA:arr.some(x=>x.temA)};
+  // balanço: recebeste mais do que enviaste = estás a dever; nas apostas é ganho/perda
+  const balTxt=x=>{const out=[];if(!x.soA)out.push(x.bal>0.004?`<span class="owe">Deves ${eur(x.bal)}</span>`:x.bal<-0.004?`<span class="owed">Devem-te ${eur(-x.bal)}</span>`:`<span class="muted">Acertado ✓</span>`);
+    if(x.temA)out.push(`<span class="${x.apo>=0?"owed":"owe"}">🎲 ${x.apo>=0?"ganho "+eur(x.apo):"perda "+eur(-x.apo)}</span>`);return out.join("<br>")};
   if(!arr.some(x=>x.k===f.sel))f.sel=arr[0]?arr[0].k:null;
   const max=Math.max(1,...arr.map(x=>Math.max(x.env,x.rec)));
   const hue=k=>{let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))%360;return h};
@@ -399,7 +403,7 @@ function vTransf(){
     const mm=yv?MES3.map((n,i)=>{const k=perKey(yv,i+1);const v=its.filter(m=>periodOf(m)===k);return{n,e:v.reduce((s,m)=>s+(m.valor>0?m.valor:0),0),r:v.reduce((s,m)=>s+(m.valor<0?-m.valor:0),0)}}):null;
     const mx=mm?Math.max(1,...mm.map(x=>Math.max(x.e,x.r))):1;
     return `<div class="panel trf-det"><h2><span class="trf-av" style="--h:${hue(sel.k)}">${esc(sel.p.charAt(0))}</span>${esc(sel.p)}<span class="count">${sel.n} ${sel.n===1?"transferência":"transferências"}</span></h2>
-      <div class="cd-stats" style="padding:4px 18px 0"><div><span>Enviaste</span><b>${eur(sel.env)}</b></div><div><span>Recebeste</span><b style="color:var(--green)">${eur(sel.rec)}</b></div><div><span>Saldo</span><b class="${sel.rec-sel.env<0?"neg":""}">${sel.rec-sel.env>=0?"+ ":"− "}${eur(Math.abs(sel.rec-sel.env))}</b></div></div>
+      <div class="cd-stats" style="padding:4px 18px 0"><div><span>Enviaste</span><b>${eur(sel.env)}</b></div><div><span>Recebeste</span><b style="color:var(--green)">${eur(sel.rec)}</b></div><div><span>Balanço</span><b>${balTxt(sel)}</b></div></div>
       ${mm?`<div class="trf-mes">${mm.map(x=>`<div title="${x.n}: enviado ${eur(x.e)} · recebido ${eur(x.r)}"><div class="bars"><i class="e" style="height:${(x.e/mx*100).toFixed(1)}%"></i><i class="r" style="height:${(x.r/mx*100).toFixed(1)}%"></i></div><span>${x.n}</span></div>`).join("")}</div>
         <div class="trf-leg"><span><i class="e"></i>Enviado</span><span><i class="r"></i>Recebido</span></div>`:""}
       <div class="list">${its.map(m=>rowHTML(m,`${m.data?fmtD(m.data):"sem data"} · ${esc(m.cat||"Sem categoria")}`)).join("")}</div></div>`})():`<div class="panel"><div class="empty">Sem transferências TFI com estes filtros. Aparecem aqui os movimentos importados do extrato que começam por “TFI”.</div></div>`;
@@ -410,11 +414,13 @@ function vTransf(){
   <div class="cards">
     <div class="card"><div class="lbl">Enviado</div><div class="val">${eur(T.env)}</div></div>
     <div class="card"><div class="lbl">Recebido</div><div class="val" style="color:var(--green)">${eur(T.rec)}</div></div>
-    <div class="card"><div class="lbl">Saldo</div><div class="val">${T.rec-T.env>=0?"+ ":"− "}${eur(Math.abs(T.rec-T.env))}</div><div class="hint">recebido − enviado</div></div>
+    <div class="card"><div class="lbl">Estás a dever</div><div class="val" style="color:var(--red)">${eur(T.deves)}</div><div class="hint">recebeste mais do que enviaste</div></div>
+    <div class="card"><div class="lbl">Devem-te</div><div class="val" style="color:var(--green)">${eur(T.devem)}</div><div class="hint">enviaste mais do que recebeste</div></div>
+    ${T.temA?`<div class="card"><div class="lbl">🎲 Apostas</div><div class="val" style="color:var(${T.apo>=0?"--green":"--red"})">${T.apo>=0?"+ ":"− "}${eur(Math.abs(T.apo))}</div><div class="hint">${T.apo>=0?"ganho":"perda"} · não conta como dívida</div></div>`:""}
     <div class="card"><div class="lbl">Pessoas</div><div class="val">${arr.length}</div><div class="hint">${all.length} transferências</div></div></div>
-  <div class="trf-wrap"><div class="panel"><table class="trf-t"><thead><tr><th>Pessoa</th><th>N.º</th><th>Enviado</th><th>Recebido</th><th>Saldo</th><th>Última</th></tr></thead><tbody>
+  <div class="trf-wrap"><div class="panel"><table class="trf-t"><thead><tr><th>Pessoa</th><th>N.º</th><th>Enviado</th><th>Recebido</th><th>Balanço</th><th>Última</th></tr></thead><tbody>
     ${arr.map(x=>`<tr data-trsel="${esc(x.k)}" class="${x.k===f.sel?"on":""}"><td><div class="trf-n"><span class="trf-av" style="--h:${hue(x.k)}">${esc(x.p.charAt(0))}</span><div><b>${esc(x.p)}</b><div class="trf-bar"><i class="e" style="width:${(x.env/max*100).toFixed(1)}%"></i><i class="r" style="width:${(x.rec/max*100).toFixed(1)}%"></i></div></div></div></td>
-      <td>${x.n}</td><td>${x.env?eur(x.env):"–"}</td><td class="pos">${x.rec?eur(x.rec):"–"}</td><td class="${x.rec-x.env<0?"neg":"pos"}">${x.rec-x.env>=0?"+ ":"− "}${eur(Math.abs(x.rec-x.env))}</td><td class="muted">${x.last?fmtD(x.last):"–"}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">Nada encontrado.</td></tr>`}
+      <td>${x.n}</td><td>${x.env?eur(x.env):"–"}</td><td class="pos">${x.rec?eur(x.rec):"–"}</td><td>${balTxt(x)}</td><td class="muted">${x.last?fmtD(x.last):"–"}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">Nada encontrado.</td></tr>`}
   </tbody></table></div>${det}</div>`}
 
 function vMovimentos(){
