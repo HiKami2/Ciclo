@@ -432,7 +432,7 @@ function vMovimentos(){
   const f=UI.filtro;
   let arr=DB.movimentos.filter(m=>passa(m,f));
   const ord=f.ord||"data";
-  arr.sort(ord==="alt"?(a,b)=>(b.u||0)-(a.u||0):ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
+  arr.sort(ord==="alt"?(a,b)=>(b.u||0)-(a.u||0):ord==="antigos"?(a,b)=>(a.data||"9999").localeCompare(b.data||"9999"):ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
   const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);const act=filtroAtivo(f);
   const small=window.innerWidth<=700,lim=UI.movLim||(UI.movLim=60),vis=arr.slice(0,lim);
   const more=arr.length>lim?`<div class="empty"><button class="btn small" data-act="movmore">Mostrar mais (${Math.min(arr.length-lim,120)} de ${arr.length-lim})</button></div>`:"";
@@ -440,7 +440,7 @@ function vMovimentos(){
   <div class="toolbar">
     <input type="search" id="fq" placeholder="Pesquisar descrição, categoria ou nota…" value="${esc(f.q)}" style="flex:1;min-width:200px">
     <button class="btn ${act.length?"primary":""}" data-act="openfilt">${FILT_ICON} Filtros${act.length?` (${act.length})`:""}</button>
-    <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option><option value="alt" ${ord==="alt"?"selected":""}>Alterados recentemente</option></select>
+    <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="antigos" ${ord==="antigos"?"selected":""}>Mais antigos</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option><option value="alt" ${ord==="alt"?"selected":""}>Alterados recentemente</option></select>
     <button class="btn small" data-act="impextrato">🏦 Importar extrato</button>
   </div>
   ${act.length?`<div class="fchips">${act.map(([k,v,t])=>`<button class="fchip" data-rmf="${k}" data-rmv="${esc(String(v))}">${esc(t)} <span>✕</span></button>`).join("")}<button class="fchip clear" data-act="clearfilt">Limpar tudo</button></div>`:""}
