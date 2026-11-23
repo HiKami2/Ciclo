@@ -211,7 +211,7 @@ function sumsBase(k){const ms=movsOf(k);const r={fixas:0,variaveis:0,rec:0,pago:
 function curPeriod(){return periodOfDate(today0())}
 
 /* ================= Estado da interface ================= */
-const UI={view:"mensal",per:null,ano:null,filtro:{q:"",ano:"",mes:"",tipo:"",cat:""}};
+const UI={view:"mensal",per:null,ano:null,filtro:{q:"",anos:[],meses:[],tipo:"",cats:[],sit:[],dir:"",min:"",max:"",prest:false,ord:"data"}};
 function setView(v){UI.view=v;try{localStorage.setItem(LS_KEY+".view",v)}catch(e){}render();window.scrollTo(0,0);const mm=document.querySelector("main");if(mm)mm.scrollTop=0}
 
 /* ================= Render ================= */
@@ -342,22 +342,36 @@ function vAnual(){
   </div>`}
 
 /* ---------- Movimentos ---------- */
+const SIT=[["pago","Pago"],["pend","Pendente"],["paus","Pausado"],["rec","Recebido"],["sem","Sem valor"]];
+function filtroAtivo(f){const out=[];
+  f.anos.forEach(v=>out.push(["anos",v,String(v)]));f.meses.forEach(v=>out.push(["meses",v,MESES[v-1]]));
+  if(f.tipo)out.push(["tipo",f.tipo,f.tipo==="Fixa"?"Fixas":"Variáveis"]);f.cats.forEach(v=>out.push(["cats",v,catIcon(v)+" "+v]));
+  f.sit.forEach(v=>out.push(["sit",v,SIT.find(x=>x[0]===v)[1]]));if(f.dir)out.push(["dir",f.dir,f.dir==="g"?"Só gastos":"Só recebidos"]);
+  if(f.min!=="")out.push(["min",f.min,"≥ "+eur(+f.min)]);if(f.max!=="")out.push(["max",f.max,"≤ "+eur(+f.max)]);if(f.prest)out.push(["prest",1,"💳 Prestações"]);return out}
+function passa(m,f){const p=periodOf(m);const [y,mm]=p?perParts(p):[null,null];
+  if(f.anos.length&&!f.anos.includes(y))return false;if(f.meses.length&&!f.meses.includes(mm))return false;
+  if(f.tipo&&m.tipo!==f.tipo)return false;if(f.cats.length&&!f.cats.includes(m.cat))return false;
+  if(f.sit.length&&!f.sit.includes(status(m).k))return false;
+  if(f.dir==="g"&&!(m.valor>0))return false;if(f.dir==="r"&&!(m.valor<0))return false;
+  const a=Math.abs(+m.valor||0);if(f.min!==""&&a<+f.min)return false;if(f.max!==""&&a>+f.max)return false;
+  if(f.prest&&!m.prest)return false;
+  if(f.q){const q=N0(f.q);if(!N0(m.desc).includes(q)&&!N0(m.cat).includes(q)&&!N0(m.nota).includes(q))return false}return true}
+const N0=s=>String(s||"").normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase();
 function vMovimentos(){
-  const f=UI.filtro;const ys=yearsAvail();
-  let arr=sortedMovs().reverse().filter(m=>{const p=periodOf(m);const [y,mm]=p?perParts(p):[null,null];
-    if(f.ano&&y!==+f.ano)return false;if(f.mes&&mm!==+f.mes)return false;if(f.tipo&&m.tipo!==f.tipo)return false;if(f.cat&&m.cat!==f.cat)return false;
-    if(f.q&&!(m.desc||"").toLowerCase().includes(f.q.toLowerCase()))return false;return true});
-  const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);
+  const f=UI.filtro;
+  let arr=DB.movimentos.filter(m=>passa(m,f));
+  const ord=f.ord||"data";
+  arr.sort(ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
+  const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);const act=filtroAtivo(f);
   return `<h1>Movimentos</h1><div class="sub">Todos os registos. Valor negativo = dinheiro recebido.</div>
   <div class="toolbar">
-    <input type="search" id="fq" placeholder="Pesquisar…" value="${esc(f.q)}" style="min-width:200px">
-    <select id="fano"><option value="">Todos os anos</option>${ys.map(a=>`<option ${+f.ano===a?"selected":""}>${a}</option>`).join("")}</select>
-    <select id="fmes"><option value="">Todos os meses</option>${MESES.map((n,i)=>`<option value="${i+1}" ${+f.mes===i+1?"selected":""}>${n}</option>`).join("")}</select>
-    <select id="ftipo"><option value="">Fixas e variáveis</option><option ${f.tipo==="Fixa"?"selected":""}>Fixa</option><option ${f.tipo==="Variável"?"selected":""}>Variável</option></select>
-    <select id="fcat"><option value="">Todas as categorias</option>${DB.config.categorias.map(c=>`<option ${f.cat===c.nome?"selected":""}>${esc(c.nome)}</option>`).join("")}</select>
+    <input type="search" id="fq" placeholder="Pesquisar descrição, categoria ou nota…" value="${esc(f.q)}" style="flex:1;min-width:200px">
+    <button class="btn ${act.length?"primary":""}" data-act="openfilt">${FILT_ICON} Filtros${act.length?` (${act.length})`:""}</button>
+    <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option></select>
     <button class="btn small" data-act="impextrato">🏦 Importar extrato</button>
-    <span class="muted filter-sum">${arr.length} registos · gasto ${eur(tg)} · recebido ${eur(tr)}</span>
   </div>
+  ${act.length?`<div class="fchips">${act.map(([k,v,t])=>`<button class="fchip" data-rmf="${k}" data-rmv="${esc(String(v))}">${esc(t)} <span>✕</span></button>`).join("")}<button class="fchip clear" data-act="clearfilt">Limpar tudo</button></div>`:""}
+  <div class="msum"><span><b>${arr.length}</b> registos</span><span>Gasto <b>${eur(tg)}</b></span><span>Recebido <b style="color:var(--green)">${eur(tr)}</b></span><span>Saldo <b>${eur(tr-tg)}</b></span></div>
   <div class="panel sm-block"><div class="list">${arr.slice(0,300).map(x=>{const p=periodOf(x);const [yy,mm]=p?perParts(p):[0,0];return rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${p?MES3[mm-1]+" "+yy:"—"}`)}).join("")||`<div class="empty">Nada encontrado.</div>`}</div></div>
   <div class="panel lg-block" style="overflow:auto"><table>
     <tr><th>Data</th><th style="text-align:left">Descrição</th><th style="text-align:left">Categoria</th><th style="text-align:left">Tipo</th><th style="text-align:left">Mês</th><th>Situação</th><th>Valor</th></tr>
@@ -451,6 +465,32 @@ function prestPanel(){
       <div class="goal-m muted">Termina a ${fmtD(g.fim)}</div></div>`).join("")}</div>`
     :`<div class="empty">Sem prestações em curso. Para criar, usa <b>Adicionar</b> → “Pagar em prestações”.</div>`}
     ${feitos?`<div class="muted" style="font-size:12.5px;padding:0 18px 14px">✔ ${feitos} ${feitos===1?"compra já paga":"compras já pagas"} na totalidade.</div>`:""}</div>`}
+const FILT_ICON='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>';
+function openFilters(){
+  const f=JSON.parse(JSON.stringify(UI.filtro));editing={filt:f};
+  const ys=yearsAvail();
+  const chips=(key,list,multi=true)=>`<div class="catchips" data-fkey="${key}" data-multi="${multi?1:0}">${list.map(([v,t])=>{const on=multi?f[key].includes(v):f[key]===v;return `<button type="button" data-fv="${esc(String(v))}" class="${on?"on":""}">${t}</button>`}).join("")}</div>`;
+  $("#modal").innerHTML=`<header>Filtros<button class="iconbtn x" data-act="close">✕</button></header>
+  <div class="body" id="filtBody">
+    <div class="field"><label>Ano</label>${chips("anos",ys.map(a=>[a,String(a)]))}</div>
+    <div class="field"><label>Mês</label>${chips("meses",MES3.map((n,i)=>[i+1,n]))}</div>
+    <div class="field"><label>Movimento</label>${chips("dir",[["","Todos"],["g","Gastos"],["r","Recebidos"]],false)}</div>
+    <div class="field"><label>Tipo</label>${chips("tipo",[["","Todos"],["Fixa","Fixas"],["Variável","Variáveis"]],false)}</div>
+    <div class="field"><label>Categorias</label>${chips("cats",DB.config.categorias.map(c=>[c.nome,catIcon(c.nome)+" "+esc(c.nome)]))}</div>
+    <div class="field"><label>Situação</label>${chips("sit",SIT)}</div>
+    <div class="field"><label>Valor</label><div class="two"><label class="money"><input type="number" inputmode="decimal" id="fMin" placeholder="mínimo" value="${f.min}"><span>€</span></label><label class="money"><input type="number" inputmode="decimal" id="fMax" placeholder="máximo" value="${f.max}"><span>€</span></label></div></div>
+    <label class="toggle"><input type="checkbox" id="fPrestF" ${f.prest?"checked":""}> 💳 Só prestações</label>
+    <div class="muted" id="filtCount" style="font-size:13px"></div>
+  </div>
+  <div class="actions"><button class="btn left" data-act="resetfilt">Limpar</button><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="applyfilt">Ver resultados</button></div>`;
+  $("#modalBg").classList.add("open");
+  const read=()=>{f.min=$("#fMin").value;f.max=$("#fMax").value;f.prest=$("#fPrestF").checked;
+    const n=DB.movimentos.filter(m=>passa(m,f)).length;$("#filtCount").textContent=`${n} movimentos com estes filtros`;$("[data-act=applyfilt]").textContent=`Ver ${n} resultados`};
+  $("#filtBody").addEventListener("click",e=>{const b=e.target.closest("[data-fv]");if(!b)return;const box=b.closest("[data-fkey]"),key=box.dataset.fkey,multi=box.dataset.multi==="1";
+    let v=b.dataset.fv;if(key==="anos"||key==="meses")v=+v;
+    if(multi){const i=f[key].indexOf(v);i>=0?f[key].splice(i,1):f[key].push(v);b.classList.toggle("on")}
+    else{f[key]=v;box.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))}read()});
+  $("#filtBody").addEventListener("input",read);read()}
 function vPlano(){
   const y=UI.ano;const ys=yearsAvail();
   return `<h1>Plano</h1><div class="sub">Rendimento e poupança de cada mês de ${y}.</div>
@@ -610,13 +650,15 @@ function bindView(){
   {const sm=$("#segMes .on");if(sm&&sm.scrollIntoView&&window.innerWidth<700)sm.parentElement.scrollLeft=sm.offsetLeft-sm.parentElement.clientWidth/2+sm.clientWidth/2}
   on("#selAnoA","change",e=>{UI.ano=+e.target.value;render()});
   const ff=(id,key)=>on(id,id==="#fq"?"input":"change",e=>{UI.filtro[key]=e.target.value;const pos=e.target.selectionStart;render();if(id==="#fq"){const q=$("#fq");q.focus();q.setSelectionRange(pos,pos)}});
-  ff("#fq","q");ff("#fano","ano");ff("#fmes","mes");ff("#ftipo","tipo");ff("#fcat","cat");
+  ff("#fq","q");ff("#ford","ord");
   document.querySelectorAll("[data-plan]").forEach(inp=>inp.addEventListener("change",e=>{
     const k=e.target.dataset.plan,f=e.target.dataset.f;let p=planOf(k);if(!p){p={per:k,salario:0,outros:0,cartao:0,notas:""};DB.plano.push(p)}
     p[f]=f==="notas"?e.target.value:(e.target.value===""?0:+e.target.value);changed()}));
   document.querySelectorAll("[data-orc]").forEach(inp=>inp.addEventListener("change",e=>{DB.config.categorias[+e.target.dataset.orc].orcamento=e.target.value===""?null:+e.target.value;changed()}));
 }
 document.addEventListener("click",async e=>{
+  const rf=e.target.closest("[data-rmf]");if(rf){const k=rf.dataset.rmf,v=rf.dataset.rmv,f=UI.filtro;
+    if(Array.isArray(f[k])){f[k]=f[k].filter(x=>String(x)!==v)}else if(k==="prest")f.prest=false;else f[k]="";render();return}
   const th=e.target.closest("[data-theme-set]");if(th){setTheme(th.dataset.themeSet);return}
   const gl=e.target.closest("[data-goal]");if(gl&&!e.target.closest("[data-act]")){openGoal(gl.dataset.goal);return}
   if(e.target.closest("[data-gogoal]")){UI.ano=perParts(curPeriod())[0];setView("plano");return}
@@ -632,6 +674,10 @@ document.addEventListener("click",async e=>{
     case"close":closeModal();break;
     case"savemv":saveEditor();break;
     case"newgoal":openGoal(null);break;
+    case"openfilt":openFilters();break;
+    case"applyfilt":{const f=editing.filt;f.min=$("#fMin").value;f.max=$("#fMax").value;f.prest=$("#fPrestF").checked;UI.filtro={...f,q:UI.filtro.q,ord:UI.filtro.ord};closeModal();render();break}
+    case"resetfilt":{UI.filtro={q:UI.filtro.q,anos:[],meses:[],tipo:"",cats:[],sit:[],dir:"",min:"",max:"",prest:false,ord:UI.filtro.ord};closeModal();render();toast("Filtros limpos");break}
+    case"clearfilt":UI.filtro={q:"",anos:[],meses:[],tipo:"",cats:[],sit:[],dir:"",min:"",max:"",prest:false,ord:UI.filtro.ord};render();break;
     case"transinfo":{const S=sums(UI.per);toast(S.trans>0?`Sobraram ${eur(S.trans)} no mês anterior: entram aqui como receita.`:`O mês anterior fechou em negativo: ${eur(-S.trans)} descontados aqui.`);break}
     case"savetrans":{const y=+$("#trAno").value,m=+$("#trMes").value;DB.config.transitar={ativo:$("#trOn").checked,desde:perKey(y,m),negativo:$("#trNeg").checked};changed();toast("Guardado ✔");break}
     case"delprest":{if(t.dataset.confirm){const g=editing.prest.grupo;const n=DB.movimentos.filter(x=>x.prest&&x.prest.grupo===g).length;DB.movimentos=DB.movimentos.filter(x=>!(x.prest&&x.prest.grupo===g));closeModal();changed();toast(`${n} prestações apagadas`)}else{t.dataset.confirm="1";t.textContent="Confirmar: apagar todas"}break}

@@ -380,3 +380,13 @@ tr.cur .money span{color:var(--accent)}
   .improw select[data-impcat]{grid-area:s}.improw .imptipo{grid-area:t}
   .implist{max-height:48vh}
 }
+
+/* filtros dos movimentos */
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}
+.fchip{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent);display:inline-flex;gap:6px;align-items:center}
+.fchip span{opacity:.7;font-size:11px}
+.fchip.clear{background:transparent;color:var(--muted);text-decoration:underline}
+.msum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:0 0 12px;padding:10px 14px;background:var(--panel);border-radius:var(--r-md);box-shadow:var(--shadow)}
+.msum b{color:var(--ink);font-variant-numeric:tabular-nums}
+#filtBody .catchips button{padding:7px 11px;font-size:13px}
+@media (max-width:700px){#ford{flex:1}}
