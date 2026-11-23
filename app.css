@@ -458,3 +458,32 @@ tr.cur .money span{color:var(--accent)}
   .cd-act .btn.primary{flex-basis:100%}
 }
 @media (max-width:380px){nav.side button{font-size:9.5px}nav.side button.on svg{width:44px;padding:3px 10px}}
+
+/* ---------- Transferências (só PC) ---------- */
+@media (max-width:900px){nav.side .pc-only{display:none !important}}
+.lock{font-size:13px}
+.trf-wrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+.trf-t{width:100%;border-collapse:collapse}
+.trf-t th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;text-align:right;padding:12px 14px;border-bottom:1px solid var(--line)}
+.trf-t th:first-child{text-align:left}
+.trf-t td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.trf-t td:first-child{text-align:left;white-space:normal}
+.trf-t tbody tr{cursor:pointer;transition:background .12s}
+.trf-t tbody tr:hover{background:var(--soft)}
+.trf-t tbody tr.on{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.trf-t td.pos{color:var(--green)}.trf-t td.neg,.cd-stats b.neg{color:var(--red)}
+.trf-n{display:flex;align-items:center;gap:11px;min-width:0}.trf-n>div{min-width:0;flex:1}
+.trf-av{width:32px;height:32px;border-radius:10px;display:inline-grid;place-items:center;font-weight:800;flex:none;background:hsl(var(--h) 75% 52% / .16);color:hsl(var(--h) 65% 40%)}
+:root[data-theme=dark] .trf-av{color:hsl(var(--h) 80% 72%)}
+.trf-det h2 .trf-av{margin-right:4px}
+.trf-bar{display:grid;gap:2px;margin-top:5px;max-width:220px}
+.trf-bar i{display:block;height:4px;border-radius:9px;min-width:0}
+.trf-bar i.e,.trf-mes i.e,.trf-leg i.e{background:var(--accent)}.trf-bar i.r,.trf-mes i.r,.trf-leg i.r{background:var(--green)}
+.trf-mes{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;padding:16px 18px 4px;align-items:end}
+.trf-mes>div{display:grid;gap:4px;justify-items:center}
+.trf-mes .bars{height:70px;width:100%;display:flex;gap:2px;align-items:flex-end;justify-content:center}
+.trf-mes .bars i{width:7px;border-radius:4px 4px 1px 1px;min-height:0}
+.trf-mes span{font-size:10.5px;color:var(--muted)}
+.trf-leg{display:flex;gap:14px;padding:4px 18px 10px;font-size:11.5px;color:var(--muted)}
+.trf-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+@media (max-width:1250px){.trf-wrap{grid-template-columns:minmax(0,1fr)}}
