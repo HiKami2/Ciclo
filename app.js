@@ -259,15 +259,18 @@ function vMensal(){
   const fix=ms.filter(x=>x.tipo==="Fixa"),vari=ms.filter(x=>x.tipo!=="Fixa");
   const list=(arr)=>arr.length?arr.map(x=>rowHTML(x,`${x.data?fmtD(x.data):"sem data"} · ${esc(x.cat||"Sem categoria")}${x.ajuste?" · ajustado":""}`)).join(""):`<div class="empty">Ainda nada neste mês.</div>`;
   const tot=arr=>arr.reduce((t,x)=>t+gasto(x)-recebido(x),0);
-  return `<h1>Controlo mensal</h1>
-  <div class="sub lg-only">O mês começa no dia do ordenado (${DB.config.diaOrdenado}, ou dia útil seguinte).</div>
-  <div class="toolbar">
-    <select id="selAno">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select>
-    <div class="seg" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
-    <button class="btn small" data-act="hoje">Mês atual</button>
+  const isNow=k===periodOfDate(today0());
+  return `<div class="mhead">
+    <div class="mnav"><button class="iconbtn" data-act="prev" title="Mês anterior">‹</button>
+      <div class="mtitle"><div class="eyebrow">Controlo mensal</div><h1>${MESES[m-1]} ${y}</h1>
+        <div class="sub" title="O mês começa no dia do ordenado (${DB.config.diaOrdenado}, ou dia útil seguinte).">Ordenado a ${fmtDshort(s)} · até ${fmtDshort(e)}</div></div>
+      <button class="iconbtn" data-act="next" title="Mês seguinte">›</button></div>
+    <div class="mpick">
+      <select id="selAno" aria-label="Ano">${ys.map(a=>`<option ${a===y?"selected":""}>${a}</option>`).join("")}</select>
+      <div class="seg" id="segMes">${MES3.map((n,i)=>`<button data-m="${i+1}" class="${i+1===m?"on":""}">${n}</button>`).join("")}</div>
+      <button class="btn small${isNow?" ghost":""}" data-act="hoje" ${isNow?"disabled":""}>Mês atual</button>
+    </div>
   </div>
-  <div class="toolbar"><button class="iconbtn" data-act="prev">‹</button><div class="period">${MESES[m-1]} ${y}</div><button class="iconbtn" data-act="next">›</button>
-    <span class="muted period-info">Ordenado a ${fmtDshort(s)} · até ${fmtDshort(e)}</span></div>
   <div class="cards">
     <div class="card hero"><div class="lbl">Plafond restante</div><div class="val">${eur(S.plafond)}</div><div class="bar"><i style="width:${(used*100).toFixed(0)}%"></i></div><div class="hint">${(used*100).toFixed(0)}% do rendimento já comprometido</div></div>
     <div class="card"><div class="lbl">Rendimento</div><div class="val">${eur(S.rend)}</div><div class="hint">${[S.trans>0?"+ "+eur(S.trans)+" do mês anterior":S.trans<0?"− "+eur(-S.trans)+" do mês anterior":"",S.rec?"+ "+eur(S.rec)+" recebido":""].filter(Boolean).join("<br>")||"&nbsp;"}</div></div>
