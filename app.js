@@ -428,11 +428,9 @@ function vTransf(){
   </tbody></table></div>${det}</div>`}
 
 function altTxt(u){if(!u)return"sem registo de alteração";const d=new Date(u);return "alterado a "+d.toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit"})+" às "+d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})}
+function movsFiltrados(){const f=UI.filtro,ord=f.ord||"data";return DB.movimentos.filter(m=>passa(m,f)).sort(ord==="alt"?(a,b)=>(b.u||0)-(a.u||0):ord==="antigos"?(a,b)=>(a.data||"9999").localeCompare(b.data||"9999"):ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"))}
 function vMovimentos(){
-  const f=UI.filtro;
-  let arr=DB.movimentos.filter(m=>passa(m,f));
-  const ord=f.ord||"data";
-  arr.sort(ord==="alt"?(a,b)=>(b.u||0)-(a.u||0):ord==="antigos"?(a,b)=>(a.data||"9999").localeCompare(b.data||"9999"):ord==="valor"?(a,b)=>Math.abs(+b.valor||0)-Math.abs(+a.valor||0):ord==="nome"?(a,b)=>N0(a.desc).localeCompare(N0(b.desc)):(a,b)=>(b.data||"0000").localeCompare(a.data||"0000"));
+  const f=UI.filtro,ord=f.ord||"data";const arr=movsFiltrados();
   const tg=arr.reduce((s,m)=>s+gasto(m),0),tr=arr.reduce((s,m)=>s+recebido(m),0);const act=filtroAtivo(f);
   const small=window.innerWidth<=700,lim=UI.movLim||(UI.movLim=60),vis=arr.slice(0,lim);
   const more=arr.length>lim?`<div class="empty"><button class="btn small" data-act="movmore">Mostrar mais (${Math.min(arr.length-lim,120)} de ${arr.length-lim})</button></div>`:"";
@@ -441,7 +439,7 @@ function vMovimentos(){
     <input type="search" id="fq" placeholder="Pesquisar descrição, categoria ou nota…" value="${esc(f.q)}" style="flex:1;min-width:200px">
     <button class="btn ${act.length?"primary":""}" data-act="openfilt">${FILT_ICON} Filtros${act.length?` (${act.length})`:""}</button>
     <select id="ford" title="Ordenar"><option value="data" ${ord==="data"?"selected":""}>Mais recentes</option><option value="antigos" ${ord==="antigos"?"selected":""}>Mais antigos</option><option value="valor" ${ord==="valor"?"selected":""}>Maior valor</option><option value="nome" ${ord==="nome"?"selected":""}>Nome A–Z</option><option value="alt" ${ord==="alt"?"selected":""}>Alterados recentemente</option></select>
-    <button class="btn small" data-act="impextrato">🏦 Importar extrato</button>
+    <button class="btn small" data-act="expextrato" ${arr.length?"":"disabled"} title="Exporta para Excel só os movimentos que estão filtrados">📤 Exportar extrato</button>
   </div>
   ${act.length?`<div class="fchips">${act.map(([k,v,t])=>`<button class="fchip" data-rmf="${k}" data-rmv="${esc(String(v))}">${esc(t)} <span>✕</span></button>`).join("")}<button class="fchip clear" data-act="clearfilt">Limpar tudo</button></div>`:""}
   <div class="msum"><span><b>${arr.length}</b> registos</span><span>Gasto <b>${eur(tg)}</b></span><span>Recebido <b style="color:var(--green)">${eur(tr)}</b></span><span>Saldo <b>${eur(tr-tg)}</b></span></div>

@@ -314,6 +314,46 @@ function build(y){
 
   return {sheets:[R,M,CA,P,PP,D],styles:S.xml()}}
 
+/* ---------- Extrato: só os movimentos filtrados ---------- */
+function buildExtrato(movs,filtros){
+  const S=Styles(),st=S.get,now=new Date();
+  const sTitle=st({b:1,sz:18,color:C.white,fill:C.accent,indent:1}),sTitleR=st({sz:10,color:C.white,fill:C.accent,h:"right",indent:1}),sBand=st({fill:C.accent});
+  const sSub=st({sz:9,color:C.muted,indent:1,i:1,wrap:1,v:"top"});
+  const sH=st({b:1,sz:9,color:C.ink,fill:C.accentSoft,bb:["medium",C.accent],h:"left",indent:1}),sHR=st({b:1,sz:9,color:C.ink,fill:C.accentSoft,bb:["medium",C.accent],h:"right"});
+  const sT=st({indent:1,bb:["thin",C.line]}),sTm=st({color:C.muted,sz:9,indent:1,bb:["thin",C.line]}),sTb=st({b:1,indent:1,bb:["thin",C.line]});
+  const sE=st({fmt:EUR,bb:["thin",C.line]}),sEg=st({fmt:EURP,color:C.green,bb:["thin",C.line]});
+  const sD=st({fmt:"dd/mm/yyyy",indent:1,bb:["thin",C.line],h:"left"});
+  const sKl=st({sz:8,b:1,color:C.muted,fill:C.soft,indent:1,bt:["medium",C.accent]});
+  const kv=c=>st({sz:15,b:1,fmt:c===C.ink?EUR:EURP,color:c,fill:C.soft,indent:1,h:"left"});
+  const sit={Pago:st({color:C.green,b:1,indent:1,bb:["thin",C.line]}),Pendente:st({color:C.amber,b:1,indent:1,bb:["thin",C.line]}),Pausado:st({color:C.muted,i:1,indent:1,bb:["thin",C.line]}),Recebido:st({color:C.green,b:1,indent:1,bb:["thin",C.line]}),"Sem valor":st({color:C.muted,indent:1,bb:["thin",C.line]})};
+  const E=Sheet("Extrato",C.accent);E.first=true;E.cols=[12,10,36,20,11,13,13,12,34];
+  const datas=movs.map(m=>m.data).filter(Boolean).sort();
+  E.set(0,0,"Extrato de movimentos",sTitle);for(let c=1;c<8;c++)E.set(0,c,null,sBand);E.set(0,8,"€iclo",sTitleR);E.merge(0,0,0,7);E.heights[0]=38;
+  E.set(1,0,`Exportado a ${fmtD(iso(now))} às ${now.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})} · ${movs.length} ${movs.length===1?"movimento":"movimentos"}${datas.length?` · de ${fmtD(datas[0])} a ${fmtD(datas[datas.length-1])}`:""}`,sSub);E.merge(1,0,1,8);E.heights[1]=18;
+  E.set(2,0,`Filtros: ${filtros.length?filtros.join(" · "):"nenhum (todos os movimentos)"}`,sSub);E.merge(2,0,2,8);E.heights[2]=filtros.join(" · ").length>140?30:18;
+  const H=8,R0=9,last=R0+Math.max(movs.length,1)-1;
+  const tg=r2(movs.reduce((s,m)=>s+gasto(m),0)),tr=r2(movs.reduce((s,m)=>s+recebido(m),0));
+  const K=[["GASTO",`SUBTOTAL(109,F${R0+1}:F${last+1})`,tg,kv(C.ink)],["RECEBIDO",`SUBTOTAL(109,G${R0+1}:G${last+1})`,tr,kv(C.green)],["SALDO",`B6-A6`,r2(tr-tg),kv(tr-tg<0?C.red:C.green)]];
+  // cartões: A-B gasto, C-D recebido... usam colunas próprias para não quebrar fórmulas
+  const pos=[[0,1],[2,3],[4,5]];
+  K.forEach(([l,f,v,s],i)=>{const [c1,c2]=pos[i];E.set(4,c1,l,sKl);E.set(4,c2,null,sKl);E.merge(4,c1,4,c2);E.set(5,c1,null,s);E.set(5,c2,null,s);E.merge(5,c1,6,c2);E.fill(6,c1,c2,s)});
+  E.f(5,0,K[0][1],tg,K[0][3]);E.f(5,2,K[1][1],tr,K[1][3]);E.f(5,4,`C6-A6`,r2(tr-tg),K[2][3]);
+  E.set(4,6,"Os totais acompanham os filtros que aplicares no Excel.",st({sz:8.5,color:C.muted,i:1,wrap:1,v:"top"}));E.merge(4,6,6,8);
+  E.heights[4]=16;E.heights[5]=20;E.heights[6]=12;
+  const head=["Data","Ciclo","Descrição","Categoria","Tipo","Gasto","Recebido","Situação","Notas"];
+  head.forEach((h,c)=>E.set(H,c,h,c===5||c===6?sHR:sH));E.heights[H]=24;
+  movs.forEach((m,i)=>{const r=R0+i,s0=status(m).txt;
+    E.set(r,0,m.data?serial(m.data):null,sD);E.set(r,1,periodOf(m)||"",sTm);E.set(r,2,m.desc||"",sTb);E.set(r,3,m.cat||"Sem categoria",sT);
+    E.set(r,4,m.tipo==="Fixa"?"Fixa":"Variável",sTm);E.set(r,5,r2(gasto(m)),sE);E.set(r,6,r2(recebido(m)),sEg);E.set(r,7,m.pausado?"Pausado":s0,sit[m.pausado?"Pausado":s0]||sT);
+    E.set(r,8,[m.prest?`Prestação ${m.prest.n}/${m.prest.total}`:"",m.nota||""].filter(Boolean).join(" · "),sTm)});
+  if(!movs.length)for(let c=0;c<9;c++)E.set(R0,c,null,sT);
+  E.freeze=H+1;E.table={ref:`A${H+1}:I${last+1}`,cols:head,name:"Extrato"};
+  return {sheets:[E],styles:S.xml()}}
+function exportExtrato(movs,filtros){
+  const blob=pack(buildExtrato(movs,filtros)),d=new Date(),p=n=>String(n).padStart(2,"0");
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`eciclo-extrato-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.xlsx`;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);toast(`Extrato exportado: ${movs.length} ${movs.length===1?"movimento":"movimentos"}`)}
+
 function pack(book){
   const files=[],ct=[],wbRels=[],sheetsXml=[];let tN=0,dN=0;
   book.sheets.forEach((sh,i)=>{const n=i+1,rels=[];let tRid=null,dRid=null;
@@ -365,8 +405,10 @@ function openExport(){
 
 document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;
   if(b.dataset.act==="exportxlsx"){e.stopImmediatePropagation();openExport()}
+  else if(b.dataset.act==="expextrato"){e.stopImmediatePropagation();
+    try{exportExtrato(movsFiltrados(),filtroAtivo(UI.filtro).map(x=>x[2]).concat(UI.filtro.q?[`Pesquisa: “${UI.filtro.q}”`]:[]))}catch(err){console.error(err);toast("Não foi possível exportar o extrato")}}
   else if(b.dataset.act==="doxlsx"){e.stopImmediatePropagation();const on=$("#xlAno .on");const y=on?+on.dataset.y:new Date().getFullYear();closeModal();
     try{exportXLSX(y)}catch(err){console.error(err);toast("Não foi possível criar o Excel")}}},true);
 
-window.__eciclo_xlsx={build,pack,exportXLSX};
+window.__eciclo_xlsx={build,pack,exportXLSX,buildExtrato,exportExtrato};
 })();
