@@ -386,14 +386,16 @@ function vTransf(){
   let all=transfMovs().filter(t=>{const p=periodOf(t.m);return f.ano==="todos"||(p&&perParts(p)[0]===+f.ano)});
   if(f.dir)all=all.filter(t=>f.dir==="env"?t.m.valor>0:t.m.valor<0);
   if(f.q){const q=N0(f.q);all=all.filter(t=>N0(t.p).includes(q)||N0(t.m.desc).includes(q))}
-  const g={};for(const t of all){const x=g[t.k]||(g[t.k]={k:t.k,p:t.p,env:0,rec:0,envA:0,recA:0,n:0,last:"",items:[]});
-    const ap=t.m.cat==="Apostas";if(t.m.valor>0){x.env+=t.m.valor;if(ap)x.envA+=t.m.valor}else{x.rec+=-t.m.valor;if(ap)x.recA+=-t.m.valor}x.n++;if((t.m.data||"")>x.last)x.last=t.m.data||"";x.items.push(t.m)}
+  const g={};for(const t of all){const x=g[t.k]||(g[t.k]={k:t.k,p:t.p,env:0,rec:0,envA:0,recA:0,envT:0,recT:0,nT:0,n:0,last:"",items:[]});
+    const ap=t.m.cat==="Apostas",tr=t.m.cat==="Transferências";if(tr)x.nT++;
+    if(t.m.valor>0){x.env+=t.m.valor;if(ap)x.envA+=t.m.valor;if(tr)x.envT+=t.m.valor}else{x.rec+=-t.m.valor;if(ap)x.recA+=-t.m.valor;if(tr)x.recT+=-t.m.valor}x.n++;if((t.m.data||"")>x.last)x.last=t.m.data||"";x.items.push(t.m)}
   const arr=Object.values(g).sort((a,b)=>(b.env+b.rec)-(a.env+a.rec));
-  arr.forEach(x=>{x.bal=Math.round(((x.rec-x.recA)-(x.env-x.envA))*100)/100;x.apo=Math.round((x.recA-x.envA)*100)/100;x.temA=x.envA>0||x.recA>0;x.soA=x.temA&&x.envA===x.env&&x.recA===x.rec});
+  arr.forEach(x=>{x.bal=Math.round((x.recT-x.envT)*100)/100;x.apo=Math.round((x.recA-x.envA)*100)/100;x.temA=x.envA>0||x.recA>0;x.temT=x.nT>0;x.fora=x.items.filter(m=>m.cat!=="Transferências"&&m.cat!=="Apostas").length});
   const T={env:arr.reduce((s,x)=>s+x.env,0),rec:arr.reduce((s,x)=>s+x.rec,0),deves:arr.reduce((s,x)=>s+Math.max(0,x.bal),0),devem:arr.reduce((s,x)=>s+Math.max(0,-x.bal),0),apo:arr.reduce((s,x)=>s+x.apo,0),temA:arr.some(x=>x.temA)};
-  // balanço: recebeste mais do que enviaste = estás a dever; nas apostas é ganho/perda
-  const balTxt=x=>{const out=[];if(!x.soA)out.push(x.bal>0.004?`<span class="owe">Deves ${eur(x.bal)}</span>`:x.bal<-0.004?`<span class="owed">Devem-te ${eur(-x.bal)}</span>`:`<span class="muted">Acertado ✓</span>`);
-    if(x.temA)out.push(`<span class="${x.apo>=0?"owed":"owe"}">🎲 ${x.apo>=0?"ganho "+eur(x.apo):"perda "+eur(-x.apo)}</span>`);return out.join("<br>")};
+  // balanço: só a categoria Transferências conta (recebeste mais do que enviaste = estás a dever); apostas = ganho/perda
+  const balTxt=x=>{const out=[];if(x.temT)out.push(x.bal>0.004?`<span class="owe">Deves ${eur(x.bal)}</span>`:x.bal<-0.004?`<span class="owed">Devem-te ${eur(-x.bal)}</span>`:`<span class="muted">Acertado ✓</span>`);
+    if(x.temA)out.push(`<span class="${x.apo>=0?"owed":"owe"}">🎲 ${x.apo>=0?"ganho "+eur(x.apo):"perda "+eur(-x.apo)}</span>`);
+    if(!out.length)out.push(`<span class="muted" title="Só os movimentos com a categoria Transferências contam para o balanço">fora do balanço</span>`);return out.join("<br>")};
   if(!arr.some(x=>x.k===f.sel))f.sel=arr[0]?arr[0].k:null;
   const max=Math.max(1,...arr.map(x=>Math.max(x.env,x.rec)));
   const hue=k=>{let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))%360;return h};
@@ -406,6 +408,7 @@ function vTransf(){
       <div class="cd-stats" style="padding:4px 18px 0"><div><span>Enviaste</span><b>${eur(sel.env)}</b></div><div><span>Recebeste</span><b style="color:var(--green)">${eur(sel.rec)}</b></div><div><span>Balanço</span><b>${balTxt(sel)}</b></div></div>
       ${mm?`<div class="trf-mes">${mm.map(x=>`<div title="${x.n}: enviado ${eur(x.e)} · recebido ${eur(x.r)}"><div class="bars"><i class="e" style="height:${(x.e/mx*100).toFixed(1)}%"></i><i class="r" style="height:${(x.r/mx*100).toFixed(1)}%"></i></div><span>${x.n}</span></div>`).join("")}</div>
         <div class="trf-leg"><span><i class="e"></i>Enviado</span><span><i class="r"></i>Recebido</span></div>`:""}
+      ${sel.fora?`<div class="trf-note">${sel.fora} ${sel.fora===1?"movimento não está":"movimentos não estão"} na categoria Transferências e não ${sel.fora===1?"conta":"contam"} para o balanço. <button class="btn small" data-act="trfcat" data-k="${esc(sel.k)}">Passar para Transferências</button></div>`:""}
       <div class="list">${its.map(m=>rowHTML(m,`${m.data?fmtD(m.data):"sem data"} · ${esc(m.cat||"Sem categoria")}`)).join("")}</div></div>`})():`<div class="panel"><div class="empty">Sem transferências TFI com estes filtros. Aparecem aqui os movimentos importados do extrato que começam por “TFI”.</div></div>`;
   return `<h1>Transferências</h1><div class="sub">Só as transferências bancárias TFI, por pessoa: o que enviaste e o que recebeste. O nome vem do extrato; podes corrigi-lo no movimento (Mais opções → Pessoa).</div>
   <div class="toolbar"><select id="trAnoSel"><option value="todos" ${f.ano==="todos"?"selected":""}>Todos os anos</option>${ys.map(a=>`<option ${a===+f.ano?"selected":""}>${a}</option>`).join("")}</select>
@@ -414,8 +417,8 @@ function vTransf(){
   <div class="cards">
     <div class="card"><div class="lbl">Enviado</div><div class="val">${eur(T.env)}</div></div>
     <div class="card"><div class="lbl">Recebido</div><div class="val" style="color:var(--green)">${eur(T.rec)}</div></div>
-    <div class="card"><div class="lbl">Estás a dever</div><div class="val" style="color:var(--red)">${eur(T.deves)}</div><div class="hint">recebeste mais do que enviaste</div></div>
-    <div class="card"><div class="lbl">Devem-te</div><div class="val" style="color:var(--green)">${eur(T.devem)}</div><div class="hint">enviaste mais do que recebeste</div></div>
+    <div class="card"><div class="lbl">Estás a dever</div><div class="val" style="color:var(--red)">${eur(T.deves)}</div><div class="hint">só categoria Transferências</div></div>
+    <div class="card"><div class="lbl">Devem-te</div><div class="val" style="color:var(--green)">${eur(T.devem)}</div><div class="hint">só categoria Transferências</div></div>
     ${T.temA?`<div class="card"><div class="lbl">🎲 Apostas</div><div class="val" style="color:var(${T.apo>=0?"--green":"--red"})">${T.apo>=0?"+ ":"− "}${eur(Math.abs(T.apo))}</div><div class="hint">${T.apo>=0?"ganho":"perda"} · não conta como dívida</div></div>`:""}
     <div class="card"><div class="lbl">Pessoas</div><div class="val">${arr.length}</div><div class="hint">${all.length} transferências</div></div></div>
   <div class="trf-wrap"><div class="panel"><table class="trf-t"><thead><tr><th>Pessoa</th><th>N.º</th><th>Enviado</th><th>Recebido</th><th>Balanço</th><th>Última</th></tr></thead><tbody>
@@ -858,6 +861,8 @@ document.addEventListener("click",async e=>{
     case"goprest":UI.ano=perParts(curPeriod())[0];setView("plano");setTimeout(()=>{const el=$("#prestPanel");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},50);break;
     case"savegoal":saveGoal();break;
     case"gocontas":setView("contas");break;
+    case"trfcat":{const k=t.dataset.k;let n=0;if(!DB.config.categorias.some(c=>c.nome==="Transferências"))DB.config.categorias.push({nome:"Transferências",orcamento:null});
+      transfMovs().filter(x=>x.k===k&&x.m.cat!=="Transferências"&&x.m.cat!=="Apostas").forEach(x=>{x.m.cat="Transferências";n++});changed();toast(`${n} ${n===1?"movimento passou":"movimentos passaram"} para Transferências`);break}
     case"editconta":openGoal(t.dataset.c);break;
     case"addcmov":openContaMov(null,{conta:t.dataset.c||UI.conta,valor:t.dataset.k==="r"?-0:null,_k:t.dataset.k||"g"});break;
     case"savecmov":saveContaMov();break;

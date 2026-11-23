@@ -33,7 +33,7 @@ const RULES=[
   [/NOS CIN|CINEMA|TICKETLINE|BLUETICKET|3CKET|FESTIVAL|ALIVE|GALAXIA|STEAM|XSOLLA|PLAYSTATION|NINTENDO/,"Lazer","Variável",null],
   [/^ATM|LEVANTAMENTO|DISP CARTAO/,"Dia a dia","Variável","Levantamento"],
   [/^TRF MBWAY|^COMPRA MBWAY/,"Família e amigos","Variável","MB Way"],
-  [/^TFI /,"Família e amigos","Variável",null],
+  [/^TFI /,"Transferências","Variável",null],
   [/INSTANT|FILMIN|COMUNIDAD FILM/,"Subscrições","Fixa",null],
   [/NOTE |WELLS|RELOGIO|LOJA DA/,"Compras","Variável",null],
 ];
