@@ -7,7 +7,7 @@ Publicada no GitHub Pages: `https://hikami2.github.io/ciclo/`. Este repositório
 - Fala e escreve sempre em **português de Portugal** (interface, mensagens de commit, respostas).
 - Commits curtos, no estilo "Área: o que mudou" (ex.: `Movimentos: ordenar pelos mais antigos`).
 - Sem build nem dependências: HTML/CSS/JS puros, ficheiros servidos tal como estão.
-- Ao alterar ficheiros, **sobe o número de versão `?v=N`** de todos os `<script>`/`<link>` em `index.html` (atualmente `v=31`) para os browsers apanharem a versão nova.
+- Ao alterar ficheiros, **sobe o número de versão `?v=N`** de todos os `<script>`/`<link>` em `index.html` (atualmente `v=32`) para os browsers apanharem a versão nova.
 - Respeitar a CSP de `index.html`: só `connect-src https://api.github.com`, sem scripts externos nem inline.
 - Testar sempre no telemóvel (≤900px) e no PC, tema claro e escuro.
 
@@ -17,7 +17,7 @@ Publicada no GitHub Pages: `https://hikami2.github.io/ciclo/`. Este repositório
 - `importer.js` — importação de extratos bancários CSV (regras `RULES` de categorização automática por descrição).
 - `xlsx.js` — exportação para Excel (.xlsx) feita à mão, com fórmulas e gráfico.
 - `app.css` — estilos (tokens claro/escuro). `theme.js` — aplica o tema antes de desenhar.
-- `config.js` — repositório de dados (`HiKami2/ciclo-dados`, ficheiro `dados.enc.json`).
+- `config.js` — ficheiro de dados (`dados.enc.json`); `dataRepo` vazio: cada pessoa indica o seu repositório privado ao ligar (o do dono é `HiKami2/ciclo-dados`).
 - `sw.js` — service worker. **Está vazio desde o commit "Botão Atualizar"** (a app continua a registá-lo); a versão anterior fazia cache offline (`eciclo-v29`). Confirmar com o utilizador antes de mudar.
 
 ## Dados e sincronização

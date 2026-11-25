@@ -935,6 +935,11 @@ function openSyncSetup(){
   $("#modal").innerHTML=`<header>Sincronização ☁️🔒<button class="iconbtn x" data-act="close">✕</button></header>
   <form class="body" id="syncForm" autocomplete="off">
     <div class="muted" style="font-size:13px">Os dados ficam num <b>repositório privado</b> do teu GitHub, <b>encriptados</b> com uma palavra-passe que só tu sabes. Faz isto uma vez em cada dispositivo (PC e telemóvel).</div>
+    <details><summary>Primeira vez? Como criar o repositório e o token</summary><ol class="muted" style="font-size:13px;margin:8px 0 0;padding-left:20px;display:grid;gap:6px">
+      <li>No GitHub, cria um repositório <b>privado</b> vazio (por exemplo <b>ciclo-dados</b>). Cada pessoa usa o seu, nunca o de outra.</li>
+      <li>Em <b>Settings › Developer settings › Fine-grained tokens</b>, gera um token com acesso <b>só a esse repositório</b> e permissão <b>Contents: Read and write</b>.</li>
+      <li>Escreve aqui <b>utilizador/nome-do-repositório</b>, cola o token e escolhe uma palavra-passe só tua. Os dados são criados no repositório na primeira ligação.</li>
+      <li>Nos outros dispositivos, usa o mesmo repositório, um token e a mesma palavra-passe.</li></ol></details>
     <div class="field"><label>Repositório de dados (privado)</label><input type="text" id="sRepo" value="${esc(repo)}" placeholder="utilizador/ciclo-dados"></div>
     <div class="field"><label>Token do GitHub (só para esse repositório)</label><input type="password" id="sTok" value="${esc(SYNC?.token||"")}" placeholder="github_pat_…" autocomplete="off"></div>
     <div class="field"><label>Palavra-passe de encriptação</label><input type="password" id="sPass" autocomplete="new-password"></div>
